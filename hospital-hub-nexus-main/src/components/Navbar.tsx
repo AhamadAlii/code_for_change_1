@@ -57,10 +57,6 @@ const Navbar = () => {
         </nav>
 
         <div className="hidden md:flex items-center space-x-4">
-          <button className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center transition-colors hover:bg-secondary/80">
-            <Search size={18} />
-          </button>
-          <button className="btn-primary">Donate Blood</button>
         </div>
 
         {/* Mobile menu button */}
