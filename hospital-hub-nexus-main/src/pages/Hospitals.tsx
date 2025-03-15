@@ -1,114 +1,53 @@
-
 import { useState, useEffect } from 'react';
-import { Search, Filter, MapPin, Clock, Star } from 'lucide-react';
+import { Search, Filter, MapPin, Clock, Star, Loader, AlertTriangle } from 'lucide-react';
 import HospitalCard from '@/components/HospitalCard';
 import { cn } from '@/lib/utils';
 import { useLocation } from 'react-router-dom';
 
-// Sample hospital data
-const allHospitals = [
-  {
-    id: '1',
-    name: 'City General Hospital',
-    address: '123 Healthcare Blvd, Medical District, NY 10001',
-    rating: 4.8,
-    imageUrl: 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2053&auto=format&fit=crop',
-    phoneNumber: '+1 (555) 123-4567',
-    isOpen: true,
-    distance: '1.2 miles',
-    services: ['Emergency', 'Surgery', 'Cardiology', 'Pediatrics']
-  },
-  {
-    id: '2',
-    name: 'Riverside Medical Center',
-    address: '456 Wellness Ave, Riverfront, NY 10002',
-    rating: 4.6,
-    imageUrl: 'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?q=80&w=2073&auto=format&fit=crop',
-    phoneNumber: '+1 (555) 234-5678',
-    isOpen: true,
-    distance: '2.5 miles',
-    services: ['Emergency', 'Neurology', 'Orthopedics']
-  },
-  {
-    id: '3',
-    name: 'Parkview Health Institute',
-    address: '789 Park Lane, Green District, NY 10003',
-    rating: 4.7,
-    imageUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?q=80&w=2070&auto=format&fit=crop',
-    phoneNumber: '+1 (555) 345-6789',
-    isOpen: false,
-    distance: '3.8 miles',
-    services: ['Oncology', 'Radiology', 'Laboratory']
-  },
-  {
-    id: '4',
-    name: 'Memorial Healthcare',
-    address: '101 Memorial Drive, Downtown, NY 10004',
-    rating: 4.5,
-    imageUrl: 'https://images.unsplash.com/photo-1596541223130-5d31a73fb6c6?q=80&w=2070&auto=format&fit=crop',
-    phoneNumber: '+1 (555) 456-7890',
-    isOpen: true,
-    distance: '1.5 miles',
-    services: ['Emergency', 'Gastroenterology', 'Urology']
-  },
-  {
-    id: '5',
-    name: 'University Medical Center',
-    address: '202 University Blvd, Education District, NY 10005',
-    rating: 4.9,
-    imageUrl: 'https://images.unsplash.com/photo-1581362072978-214c6244d722?q=80&w=2070&auto=format&fit=crop',
-    phoneNumber: '+1 (555) 567-8901',
-    isOpen: true,
-    distance: '4.2 miles',
-    services: ['Research', 'Cardiology', 'Neurosurgery', 'Transplant']
-  },
-  {
-    id: '6',
-    name: 'Eastside Medical Pavilion',
-    address: '303 Eastside Ave, Eastside, NY 10006',
-    rating: 4.3,
-    imageUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=2070&auto=format&fit=crop',
-    phoneNumber: '+1 (555) 678-9012',
-    isOpen: false,
-    distance: '5.7 miles',
-    services: ['Orthopedics', 'Physical Therapy', 'Sports Medicine']
-  },
-  {
-    id: '7',
-    name: 'Children\'s Health Center',
-    address: '404 Children\'s Way, Family District, NY 10007',
-    rating: 4.7,
-    imageUrl: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?q=80&w=2070&auto=format&fit=crop',
-    phoneNumber: '+1 (555) 789-0123',
-    isOpen: true,
-    distance: '3.1 miles',
-    services: ['Pediatrics', 'Child Psychology', 'Neonatology']
-  },
-  {
-    id: '8',
-    name: 'Wellness Community Hospital',
-    address: '505 Wellness Blvd, Westside, NY 10008',
-    rating: 4.4,
-    imageUrl: 'https://images.unsplash.com/photo-1578991624414-276ef23a534f?q=80&w=2070&auto=format&fit=crop',
-    phoneNumber: '+1 (555) 890-1234',
-    isOpen: true,
-    distance: '2.8 miles',
-    services: ['Primary Care', 'Family Medicine', 'Community Health']
-  },
-  {
-    id: '9',
-    name: 'Northside Regional Hospital',
-    address: '606 North St, Northside, NY 10009',
-    rating: 4.6,
-    imageUrl: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?q=80&w=2068&auto=format&fit=crop',
-    phoneNumber: '+1 (555) 901-2345',
-    isOpen: true,
-    distance: '6.3 miles',
-    services: ['Emergency', 'Surgery', 'Intensive Care']
-  }
+interface Hospital {
+  id: string;
+  name: string;
+  address: string;
+  rating: number;
+  imageUrl: string;
+  phoneNumber: string;
+  isOpen: boolean;
+  distance: string;
+  services: string[];
+  lat: number;
+  lon: number;
+}
+
+// Common hospital services for categorization - Including Indian healthcare categories
+const serviceOptions = [
+  'Emergency', 
+  'Surgery', 
+  'Cardiology', 
+  'Pediatrics', 
+  'Neurology', 
+  'Orthopedics', 
+  'Oncology', 
+  'Radiology', 
+  'Laboratory', 
+  'Primary Care',
+  'Ayurvedic',
+  'Homeopathic',
+  'Alternative Medicine',
+  'Wellness',
+  'Physiotherapy'
 ];
 
-const serviceOptions = ['Emergency', 'Surgery', 'Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'Oncology', 'Radiology', 'Laboratory', 'Primary Care'];
+// Default hospital images by type - Using images representing Indian hospitals and healthcare facilities
+const defaultImages = [
+  'https://images.unsplash.com/photo-1596541223130-5d31a73fb6c6?q=80&w=2070&auto=format&fit=crop', // Modern hospital
+  'https://images.unsplash.com/photo-1629909615216-206bbc9fe55f?q=80&w=2069&auto=format&fit=crop', // Hospital building
+  'https://images.unsplash.com/photo-1586773860418-d37222d8fce3?q=80&w=2073&auto=format&fit=crop', // Hospital entrance
+  'https://images.unsplash.com/photo-1516549655169-df83a0774514?q=80&w=2070&auto=format&fit=crop', // Hospital exterior
+  'https://images.unsplash.com/photo-1538108149393-fbbd81895907?q=80&w=2828&auto=format&fit=crop', // Indian healthcare
+  'https://images.unsplash.com/photo-1629909614088-d32d19a60766?q=80&w=1974&auto=format&fit=crop', // Hospital reception
+  'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?q=80&w=2070&auto=format&fit=crop', // Hospital building
+  'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?q=80&w=2053&auto=format&fit=crop'  // Healthcare facility
+];
 
 const Hospitals = () => {
   const location = useLocation();
@@ -116,12 +55,17 @@ const Hospitals = () => {
   const initialLocation = searchParams.get('location') || '';
   
   const [searchTerm, setSearchTerm] = useState(initialLocation);
+  const [searchQuery, setSearchQuery] = useState(initialLocation); // For pincode search
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [openOnly, setOpenOnly] = useState(false);
   const [sortBy, setSortBy] = useState('distance');
-  const [filteredHospitals, setFilteredHospitals] = useState(allHospitals);
+  const [hospitals, setHospitals] = useState<Hospital[]>([]);
+  const [filteredHospitals, setFilteredHospitals] = useState<Hospital[]>([]);
   const [isVisible, setIsVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hospitalNameSearch, setHospitalNameSearch] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -131,15 +75,369 @@ const Hospitals = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Add Indian pincode validation
+  const isValidIndianPincode = (pincode: string): boolean => {
+    // Indian pincodes are 6 digits
+    return /^[1-9][0-9]{5}$/.test(pincode);
+  };
+
+  // Function to search for hospitals using OpenStreetMap API
+  const searchHospitals = async (pincode: string) => {
+    if (!pincode.trim()) return;
+    
+    // Validate Indian pincode format
+    if (!isValidIndianPincode(pincode)) {
+      setError("Please enter a valid Indian pincode (6 digits)");
+      return;
+    }
+    
+    setIsLoading(true);
+    setError(null);
+    
+    // Add a 1 second delay to show loading screen
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    try {
+      // OpenStreetMap Nominatim API to get coordinates from pincode
+      // Add country=india parameter to restrict to India
+      const nominatimResponse = await fetch(
+        `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&limit=1`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      
+      if (!nominatimResponse.ok) {
+        throw new Error('Failed to fetch location data');
+      }
+      
+      const nominatimData = await nominatimResponse.json();
+      
+      if (!nominatimData.length) {
+        setError("Couldn't find location in India. Please check the pincode.");
+        setHospitals([]);
+        setFilteredHospitals([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      const { lat, lon, display_name } = nominatimData[0];
+      
+      // Ensure the location is in India
+      if (!display_name.toLowerCase().includes('india')) {
+        setError("This location appears to be outside India. Please enter an Indian pincode.");
+        setHospitals([]);
+        setFilteredHospitals([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Use Overpass API to query for hospitals in the area
+      const overpassQuery = `
+        [out:json];
+        (
+          node["amenity"="hospital"](around:5000,${lat},${lon});
+          way["amenity"="hospital"](around:5000,${lat},${lon});
+          relation["amenity"="hospital"](around:5000,${lat},${lon});
+          node["amenity"="clinic"](around:5000,${lat},${lon});
+          way["amenity"="clinic"](around:5000,${lat},${lon});
+          relation["amenity"="clinic"](around:5000,${lat},${lon});
+          node["healthcare"](around:5000,${lat},${lon});
+          way["healthcare"](around:5000,${lat},${lon});
+          relation["healthcare"](around:5000,${lat},${lon});
+        );
+        out body;
+        >;
+        out skel qt;
+      `;
+      
+      const overpassResponse = await fetch(
+        `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`
+      );
+      
+      if (!overpassResponse.ok) {
+        throw new Error('Failed to fetch hospital data');
+      }
+      
+      const overpassData = await overpassResponse.json();
+      
+      if (!overpassData.elements || overpassData.elements.length === 0) {
+        setError("No hospitals found in this pincode area. Try a different pincode in India.");
+        setHospitals([]);
+        setFilteredHospitals([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Process hospital data
+      const foundHospitals: Hospital[] = overpassData.elements
+        .filter((element: any) => {
+          // More strict filtering to ensure we only get actual hospitals
+          if (!element.tags) return false;
+          
+          // Skip entries without coordinates
+          if (!element.lat || !element.lon) return false;
+          
+          // Check if it's explicitly a hospital or medical facility
+          const isHospital = 
+            element.tags.amenity === 'hospital' || 
+            element.tags.healthcare === 'hospital';
+          
+          // Check if it's a clinic or medical center
+          const isClinic = 
+            element.tags.amenity === 'clinic' || 
+            element.tags.healthcare === 'clinic' ||
+            element.tags.healthcare === 'centre' ||
+            element.tags.healthcare === 'center';
+          
+          // Exclude specific types that aren't hospitals
+          const isExcluded = 
+            element.tags.amenity === 'pharmacy' || 
+            element.tags.amenity === 'doctors' ||
+            element.tags.healthcare === 'pharmacy' ||
+            element.tags.healthcare === 'blood_donation' ||
+            element.tags.healthcare === 'laboratory' ||
+            element.tags.healthcare === 'sample_collection' ||
+            element.tags.healthcare === 'blood_bank' ||
+            element.tags.name?.toLowerCase().includes('pharmacy') ||
+            element.tags.name?.toLowerCase().includes('medical store') ||
+            element.tags.name?.toLowerCase().includes('diagnostic') ||
+            element.tags.name?.toLowerCase().includes('lab') ||
+            element.tags.name?.toLowerCase().includes('laboratory');
+          
+          // Check name for hospital keywords
+          const nameHasHospitalKeyword = 
+            element.tags.name && (
+              element.tags.name.toLowerCase().includes('hospital') ||
+              element.tags.name.toLowerCase().includes('medical center') ||
+              element.tags.name.toLowerCase().includes('medical centre') ||
+              element.tags.name.toLowerCase().includes('nursing home') ||
+              element.tags.name.toLowerCase().includes('healthcare')
+            );
+          
+          return (isHospital || isClinic || nameHasHospitalKeyword) && !isExcluded;
+        })
+        .map((element: any, index: number) => {
+          // Calculate distance (crow flies)
+          const hospitalLat = element.lat || 0;
+          const hospitalLon = element.lon || 0;
+          const distance = calculateDistance(
+            parseFloat(lat), 
+            parseFloat(lon), 
+            hospitalLat, 
+            hospitalLon
+          );
+          
+          // Determine services based on tags
+          const services: string[] = [];
+          if (element.tags.emergency === 'yes') services.push('Emergency');
+          if (element.tags.healthcare === 'doctor') services.push('Primary Care');
+          if (element.tags.healthcare === 'hospital') services.push('Surgery');
+          if (element.tags.healthcare === 'clinic') services.push('Primary Care');
+          
+          // Add Indian healthcare types
+          if (element.tags.healthcare === 'ayurvedic') services.push('Ayurvedic');
+          if (element.tags.healthcare === 'homeopathic') services.push('Homeopathic');
+          if (element.tags.healthcare === 'unani' || element.tags.healthcare === 'siddha') services.push('Alternative Medicine');
+          if (element.tags.healthcare === 'physiotherapist') services.push('Physiotherapy');
+          if (element.tags.healthcare === 'yoga') services.push('Wellness');
+          
+          // Add specialty if available
+          if (element.tags.healthcare_speciality) {
+            const specialties = element.tags.healthcare_speciality.split(';');
+            for (const specialty of specialties) {
+              const mappedSpecialty = mapSpecialtyToService(specialty.trim());
+              if (mappedSpecialty && !services.includes(mappedSpecialty)) {
+                services.push(mappedSpecialty);
+              }
+            }
+          }
+          
+          // If no services were identified, add some default ones
+          if (services.length === 0) {
+            services.push('Primary Care');
+            
+            // Add random services for demo purposes
+            const randomServices = serviceOptions
+              .sort(() => 0.5 - Math.random())
+              .slice(0, Math.floor(Math.random() * 3) + 1);
+            
+            for (const service of randomServices) {
+              if (!services.includes(service)) {
+                services.push(service);
+              }
+            }
+          }
+          
+          // Determine open status (random for demo since actual opening hours might not be available)
+          const isOpen = Math.random() > 0.3; // 70% chance of being open
+          
+          // Get name or fallback
+          const name = element.tags.name || 
+                       element.tags["name:en"] || 
+                       (element.tags.amenity === 'hospital' ? 'Hospital' : 'Medical Clinic');
+          
+          // Get address or construct from available data
+          const address = element.tags["addr:full"] || 
+                          constructAddress(element.tags) || 
+                          `Near ${display_name}`;
+          
+          // Helper function to format Indian phone numbers
+          const formatIndianPhoneNumber = (phone: string | null): string => {
+            if (!phone) return "Not available";
+            
+            // If already formatted or contains spaces, return as is
+            if (phone.includes(" ")) {
+              return phone;
+            }
+            
+            // Clean the number and keep only digits
+            const digits = phone.replace(/\D/g, '');
+            
+            // Format phone number without adding country code
+            if (digits.length >= 8 && digits.length <= 12) {
+              // For telephone numbers or mobile numbers without country code
+              return digits.length > 10 
+                ? `${digits.slice(0, digits.length-10)} ${digits.slice(-10, -5)} ${digits.slice(-5)}`
+                : `${digits.slice(0, digits.length-5)} ${digits.slice(-5)}`;
+            }
+            
+            // Return original if can't format
+            return phone;
+          };
+
+          // Get phone number or fallback
+          const phoneNumber = formatIndianPhoneNumber(
+            element.tags.phone || 
+            element.tags["contact:phone"] || 
+            null
+          );
+          
+          // Pick an image for the hospital
+          const imageUrl = defaultImages[index % defaultImages.length];
+          
+          // Comment out rating generation
+          // const rating = (Math.random() * 1.5 + 3.5).toFixed(1);
+          
+          return {
+            id: element.id.toString(),
+            name,
+            address,
+            rating: 0, // Set to 0 since we're not using ratings
+            imageUrl,
+            phoneNumber,
+            isOpen,
+            distance: `${distance.toFixed(1)} km`,
+            services,
+            lat: hospitalLat,
+            lon: hospitalLon
+          };
+        });
+      
+      setHospitals(foundHospitals);
+      setFilteredHospitals(foundHospitals);
+      setSearchQuery(pincode); // Update the display term
+    } catch (err) {
+      console.error('Error fetching hospital data:', err);
+      setError("Failed to fetch hospital data. Please try again.");
+      setHospitals([]);
+      setFilteredHospitals([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper function to calculate distance between two points
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    // Convert degrees to radians
+    const toRad = (value: number) => value * Math.PI / 180;
+    
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    
+    return distance;
+  };
+
+  // Helper function to construct address from OSM tags
+  const constructAddress = (tags: any): string => {
+    const parts = [];
+    
+    if (tags["addr:housenumber"]) parts.push(tags["addr:housenumber"]);
+    if (tags["addr:street"]) parts.push(tags["addr:street"]);
+    if (tags["addr:city"]) parts.push(tags["addr:city"]);
+    if (tags["addr:state"]) parts.push(tags["addr:state"]);
+    if (tags["addr:postcode"]) parts.push(tags["addr:postcode"]);
+    
+    return parts.length > 0 ? parts.join(', ') : '';
+  };
+
+  // Helper function to map healthcare specialties to service categories
+  const mapSpecialtyToService = (specialty: string): string | null => {
+    const specialtyMap: {[key: string]: string} = {
+      'cardiology': 'Cardiology',
+      'heart': 'Cardiology',
+      'cardiac': 'Cardiology',
+      'pediatrics': 'Pediatrics',
+      'children': 'Pediatrics',
+      'neurology': 'Neurology',
+      'brain': 'Neurology',
+      'orthopaedics': 'Orthopedics',
+      'orthopedics': 'Orthopedics',
+      'bone': 'Orthopedics',
+      'oncology': 'Oncology',
+      'cancer': 'Oncology',
+      'radiology': 'Radiology',
+      'xray': 'Radiology',
+      'laboratory': 'Laboratory',
+      'lab': 'Laboratory',
+      'surgery': 'Surgery',
+      'emergency': 'Emergency',
+      // Add some common Indian healthcare terms
+      'ayurvedic': 'Ayurvedic',
+      'ayurveda': 'Ayurvedic',
+      'homeopathic': 'Homeopathic',
+      'homeopathy': 'Homeopathic',
+      'unani': 'Alternative Medicine',
+      'siddha': 'Alternative Medicine',
+      'yoga': 'Wellness',
+      'physiotherapy': 'Physiotherapy'
+    };
+    
+    const lowerSpecialty = specialty.toLowerCase();
+    
+    for (const [key, value] of Object.entries(specialtyMap)) {
+      if (lowerSpecialty.includes(key)) {
+        return value;
+      }
+    }
+    
+    return null;
+  };
+
+  // Function to open location in Google Maps
+  const openDirections = (hospital: Hospital) => {
+    // Use exact coordinates for location
+    const url = `https://www.google.com/maps/search/?api=1&query=${hospital.lat},${hospital.lon}`;
+    
+    // Open in a new tab
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   // Filter and sort hospitals
   useEffect(() => {
-    let result = [...allHospitals];
+    let result = [...hospitals];
     
-    // Apply search filter
-    if (searchTerm) {
+    // Apply hospital name search if more than 20 hospitals in result
+    if (hospitalNameSearch && hospitals.length > 20) {
       result = result.filter(hospital => 
-        hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        hospital.address.toLowerCase().includes(searchTerm.toLowerCase())
+        hospital.name.toLowerCase().includes(hospitalNameSearch.toLowerCase())
       );
     }
     
@@ -159,14 +457,12 @@ const Hospitals = () => {
     result.sort((a, b) => {
       if (sortBy === 'distance') {
         return parseFloat(a.distance) - parseFloat(b.distance);
-      } else if (sortBy === 'rating') {
-        return b.rating - a.rating;
       }
       return 0;
     });
     
     setFilteredHospitals(result);
-  }, [searchTerm, selectedServices, openOnly, sortBy]);
+  }, [hospitals, selectedServices, openOnly, sortBy, hospitalNameSearch]);
 
   const toggleService = (service: string) => {
     if (selectedServices.includes(service)) {
@@ -175,6 +471,22 @@ const Hospitals = () => {
       setSelectedServices([...selectedServices, service]);
     }
   };
+
+  // Handle search form submission
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    searchHospitals(searchTerm);
+  };
+
+  // Example Indian pincodes for major cities
+  const examplePincodes = [
+    { code: '110001', city: 'Delhi' },
+    { code: '400001', city: 'Mumbai' },
+    { code: '700001', city: 'Kolkata' },
+    { code: '600001', city: 'Chennai' },
+    { code: '500001', city: 'Hyderabad' },
+    { code: '560001', city: 'Bangalore' }
+  ];
 
   return (
     <div className="min-h-screen pt-24 pb-16">
@@ -186,7 +498,7 @@ const Hospitals = () => {
               isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
             )}
           >
-            {searchTerm ? `Hospitals near ${searchTerm}` : 'Find Hospitals'}
+            {searchQuery ? `Hospitals near ${searchQuery}` : 'Find Hospitals in India'}
           </h1>
           <p 
             className={cn(
@@ -194,7 +506,7 @@ const Hospitals = () => {
               isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
             )}
           >
-            Discover healthcare facilities near you with comprehensive services and expert medical care.
+            Discover healthcare facilities across India with comprehensive services and expert medical care.
           </p>
         </div>
         
@@ -204,20 +516,39 @@ const Hospitals = () => {
             isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
           )}
         >
-          <div className="flex flex-col md:flex-row gap-4">
+          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <MapPin size={18} className="text-muted-foreground" />
               </div>
               <input
                 type="text"
-                placeholder="Search by Pincode..."
+                placeholder="Enter Indian pincode (e.g., 110001)..."
                 className="w-full pl-10 pr-4 py-3 rounded-lg border border-input bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                maxLength={6}
               />
             </div>
             <button
+              type="submit"
+              className="flex items-center justify-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-lg transition-colors hover:bg-primary/90 disabled:opacity-70"
+              disabled={isLoading || !searchTerm.trim()}
+            >
+              {isLoading ? (
+                <>
+                  <Loader size={18} className="animate-spin" />
+                  <span>Searching...</span>
+                </>
+              ) : (
+                <>
+                  <Search size={18} />
+                  <span>Search</span>
+                </>
+              )}
+            </button>
+            <button
+              type="button"
               className="flex items-center justify-center gap-2 px-5 py-3 bg-secondary rounded-lg transition-colors hover:bg-secondary/80"
               onClick={() => setIsFilterOpen(!isFilterOpen)}
             >
@@ -230,9 +561,8 @@ const Hospitals = () => {
               onChange={(e) => setSortBy(e.target.value)}
             >
               <option value="distance">Sort by Distance</option>
-              <option value="rating">Sort by Rating</option>
             </select>
-          </div>
+          </form>
           
           {/* Filter Panel */}
           <div 
@@ -253,6 +583,7 @@ const Hospitals = () => {
                       : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                   )}
                   onClick={() => toggleService(service)}
+                  type="button"
                 >
                   {service}
                 </button>
@@ -271,6 +602,7 @@ const Hospitals = () => {
               </label>
               
               <button
+                type="button"
                 className="text-sm text-primary"
                 onClick={() => {
                   setSelectedServices([]);
@@ -283,65 +615,142 @@ const Hospitals = () => {
           </div>
         </div>
         
-        {/* Results Info */}
-        <div 
-          className={cn(
-            "flex justify-between items-center mb-6 transition-all duration-700 delay-300",
-            isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
-          )}
-        >
-          <p className="text-muted-foreground">
-            Showing {filteredHospitals.length} {filteredHospitals.length === 1 ? 'hospital' : 'hospitals'}
-            {searchTerm ? ` near ${searchTerm}` : ''}
-          </p>
-          
-          <div className="flex items-center gap-4 text-sm">
-            <span className="flex items-center gap-1">
-              <MapPin size={14} className="text-primary" />
-              <span>Distance</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <Star size={14} className="text-yellow-500" />
-              <span>Rating</span>
-            </span>
-            <span className="flex items-center gap-1">
-              <Clock size={14} className="text-green-500" />
-              <span>Open/Closed</span>
-            </span>
+        {/* Loading state */}
+        {isLoading && (
+          <div className="text-center py-16">
+            <Loader size={48} className="animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-lg text-muted-foreground">Searching for hospitals...</p>
           </div>
-        </div>
-        
-        {/* Hospital Cards */}
-        <div 
-          className={cn(
-            "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-700 delay-400",
-            isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
-          )}
-        >
-          {filteredHospitals.length > 0 ? (
-            filteredHospitals.map((hospital) => (
-              <HospitalCard key={hospital.id} {...hospital} />
-            ))
-          ) : (
-            <div className="col-span-full py-12 text-center">
-              <div className="mb-4 text-muted-foreground">
-                <Search size={48} className="mx-auto mb-4 opacity-40" />
-                <p className="text-xl font-medium">No hospitals found</p>
-                <p className="text-muted-foreground">Try adjusting your search or filters</p>
-              </div>
-              <button 
-                className="btn-secondary mt-4"
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedServices([]);
-                  setOpenOnly(false);
-                }}
-              >
-                Reset All Filters
-              </button>
+        )}
+
+        {/* Error state */}
+        {!isLoading && error && (
+          <div className="text-center py-12">
+            <div className="mb-4 text-red-500">
+              <p className="text-xl font-medium">{error}</p>
             </div>
-          )}
-        </div>
+            <button 
+              className="btn-secondary mt-4"
+              onClick={() => setError(null)}
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+        
+        {/* Results display only when not loading and no errors */}
+        {!isLoading && !error && (
+          <>
+            {/* Results Info */}
+            {hospitals.length > 0 && (
+              <div 
+                className={cn(
+                  "flex flex-col md:flex-row justify-between items-start md:items-center mb-6 transition-all duration-700 delay-300 gap-4",
+                  isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
+                )}
+              >
+                <p className="text-muted-foreground">
+                  Showing {filteredHospitals.length} {filteredHospitals.length === 1 ? 'hospital' : 'hospitals'}
+                  {searchQuery ? ` near ${searchQuery}` : ''}
+                </p>
+                
+                {/* Hospital name search input for when there are many results */}
+                {hospitals.length > 20 && (
+                  <div className="relative w-full md:w-auto">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search size={16} className="text-muted-foreground" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search hospital by name..."
+                      className="pl-10 pr-4 py-2 text-sm rounded-lg border border-input bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full md:w-60"
+                      value={hospitalNameSearch}
+                      onChange={(e) => setHospitalNameSearch(e.target.value)}
+                    />
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="flex items-center gap-1">
+                    <Clock size={14} className="text-green-500" />
+                    <span>Open/Closed</span>
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {/* No search yet state */}
+            {hospitals.length === 0 && !searchQuery && (
+              <div className="text-center py-16">
+                <Search size={48} className="mx-auto mb-4 text-muted-foreground opacity-40" />
+                <p className="text-xl font-medium mb-2">Enter an Indian pincode to find hospitals</p>
+                <p className="text-muted-foreground">Search for hospitals in your area by entering your 6-digit pincode</p>
+                
+                <div className="mt-6 text-sm text-muted-foreground">
+                  <p className="mb-2">Example pincodes:</p>
+                  <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
+                    {examplePincodes.map(example => (
+                      <button
+                        key={example.code}
+                        onClick={() => {
+                          setSearchTerm(example.code);
+                          searchHospitals(example.code);
+                        }}
+                        className="px-3 py-1 bg-secondary rounded-full hover:bg-secondary/80 transition-colors"
+                      >
+                        {example.city} ({example.code})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <AlertTriangle size={16} />
+                  <span>Only Indian locations are supported</span>
+                </div>
+              </div>
+            )}
+            
+            {/* No hospitals with filters */}
+            {filteredHospitals.length === 0 && hospitals.length > 0 && (
+              <div className="col-span-full py-12 text-center">
+                <div className="mb-4 text-muted-foreground">
+                  <Search size={48} className="mx-auto mb-4 opacity-40" />
+                  <p className="text-xl font-medium">No hospitals found with selected filters</p>
+                  <p className="text-muted-foreground">Try adjusting your search filters or try a different pincode</p>
+                </div>
+                <button 
+                  className="btn-secondary mt-4"
+                  onClick={() => {
+                    setSelectedServices([]);
+                    setOpenOnly(false);
+                  }}
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            )}
+            
+            {/* Hospital Cards */}
+            {hospitals.length > 0 && filteredHospitals.length > 0 && (
+              <div 
+                className={cn(
+                  "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-700 delay-400",
+                  isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
+                )}
+              >
+                {filteredHospitals.map((hospital) => (
+                  <div key={hospital.id} className="h-full">
+                    <HospitalCard 
+                      {...hospital} 
+                      onDirectionsClick={() => openDirections(hospital)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
