@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Star, MapPin, Phone, Clock, Navigation } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useState } from "react";
+import { Star, MapPin, Phone, Clock, Navigation } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface HospitalCardProps {
   id: string;
@@ -26,8 +26,12 @@ const convertToDMS = (coordinate: number, isLatitude: boolean): string => {
   const seconds = ((minutesNotTruncated - minutes) * 60).toFixed(1);
 
   const direction = isLatitude
-    ? coordinate >= 0 ? "N" : "S"
-    : coordinate >= 0 ? "E" : "W";
+    ? coordinate >= 0
+      ? "N"
+      : "S"
+    : coordinate >= 0
+    ? "E"
+    : "W";
 
   return `${degrees}°${minutes}'${seconds}"${direction}`;
 };
@@ -42,7 +46,7 @@ const HospitalCard = ({
   services,
   onDirectionsClick,
   lat,
-  lon
+  lon,
 }: HospitalCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -54,12 +58,13 @@ const HospitalCard = ({
   };
 
   // Format coordinates in DMS format if available
-  const formattedLocation = (lat && lon) 
-    ? `${convertToDMS(lat, true)} ${convertToDMS(lon, false)}`
-    : "Coordinates not available";
+  const formattedLocation =
+    lat && lon
+      ? `${convertToDMS(lat, true)} ${convertToDMS(lon, false)}`
+      : "Coordinates not available";
 
   return (
-    <div 
+    <div
       className={cn(
         "glass-card overflow-hidden card-hover h-full flex flex-col",
         isHovered ? "shadow-xl -translate-y-1" : "shadow-md"
@@ -68,36 +73,47 @@ const HospitalCard = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative h-48 overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center transition-transform duration-700"
-          style={{ 
+          style={{
             backgroundImage: `url(${imageUrl})`,
-            transform: isHovered ? 'scale(1.05)' : 'scale(1)'
+            transform: isHovered ? "scale(1.05)" : "scale(1)",
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-        
+
         <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end">
           <div>
             <h3 className="text-white font-semibold text-xl">{name}</h3>
           </div>
         </div>
       </div>
-      
+
       <div className="p-4 flex-grow flex flex-col">
         <div className="flex items-start gap-3 mb-3">
-          <MapPin size={16} className="text-muted-foreground mt-1 flex-shrink-0" />
+          <MapPin
+            size={16}
+            className="text-muted-foreground mt-1 flex-shrink-0"
+          />
           <p className="text-sm text-muted-foreground">{address}</p>
         </div>
-        
+
         <div className="flex items-center gap-3 mb-3">
           <Phone size={16} className="text-muted-foreground flex-shrink-0" />
-          <p className="text-sm font-medium">{phoneNumber || "Not available"}</p>
+          <p className="text-sm font-medium">
+            {phoneNumber || "Not available"}
+          </p>
         </div>
-        
+
         <div className="flex items-center gap-3 mb-3">
           <Clock size={16} className="flex-shrink-0" />
-          <span className={isOpen ? "text-green-600 text-sm font-medium" : "text-red-500 text-sm font-medium"}>
+          <span
+            className={
+              isOpen
+                ? "text-green-600 text-sm font-medium"
+                : "text-red-500 text-sm font-medium"
+            }
+          >
             {isOpen ? "Open Now" : "Closed"}
           </span>
         </div>
@@ -108,12 +124,12 @@ const HospitalCard = ({
             {formattedLocation}
           </p>
         </div> */}
-        
+
         <div className="space-y-3 flex-grow">
           <h4 className="text-sm font-medium">Available Services:</h4>
           <div className="flex flex-wrap gap-2">
             {services.map((service, index) => (
-              <span 
+              <span
                 key={index}
                 className="text-xs bg-secondary px-2 py-1 rounded-full"
               >
@@ -122,9 +138,9 @@ const HospitalCard = ({
             ))}
           </div>
         </div>
-        
+
         <div className="mt-4 pt-4 border-t border-border">
-          <button 
+          <button
             onClick={handleDirectionsClick}
             className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
           >

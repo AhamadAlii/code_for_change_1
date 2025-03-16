@@ -1,13 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { Search, Filter, MapPin, Clock, Loader, AlertTriangle, Droplet, Phone } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import axios from 'axios';
+import {
+  Search,
+  Filter,
+  MapPin,
+  Clock,
+  Loader,
+  AlertTriangle,
+  Droplet,
+  Phone,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import axios from "axios";
 
 // Blood groups to filter by
-const bloodGroups = [
-  'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'
-];
+const bloodGroups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
 
 // Structure for blood bank data
 interface BloodBank {
@@ -37,8 +44,8 @@ const decodeHtml = (html: string) => {
 };
 
 const BloodBank = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedBloodGroups, setSelectedBloodGroups] = useState<string[]>([]);
   const [bloodBanks, setBloodBanks] = useState<BloodBank[]>([]);
@@ -51,7 +58,7 @@ const BloodBank = () => {
     const timer = setTimeout(() => {
       setIsVisible(true);
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, []);
 
@@ -64,75 +71,85 @@ const BloodBank = () => {
   // Function to search for blood banks
   const searchBloodBanks = async (pincode: string) => {
     if (!pincode.trim()) return;
-    
+
     // Validate Indian pincode format
     if (!isValidIndianPincode(pincode)) {
       setError("Please enter a valid Indian pincode (6 digits)");
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
+
     try {
       // Call the blood bank API
       const response = await axios.get(
-        `https://api.data.gov.in/resource/fced6df9-a360-4e08-8ca0-f283fc74ce15`, 
+        `https://api.data.gov.in/resource/fced6df9-a360-4e08-8ca0-f283fc74ce15`,
         {
           params: {
-            'api-key': '579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b',
-            'format': 'json',
-            'filters[pincode]': pincode
-          }
+            "api-key":
+              "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b",
+            format: "json",
+            "filters[pincode]": pincode,
+          },
         }
       );
-      
-      if (!response.data || !response.data.records || response.data.records.length === 0) {
-        setError("No blood banks found in this pincode area. Try a different pincode in India.");
+
+      // console.log("API Response:", response.data.records);
+      if (
+        !response.data ||
+        !response.data.records ||
+        response.data.records.length === 0
+      ) {
+        setError(
+          "No blood banks found in this pincode area. Try a different pincode in India."
+        );
         setBloodBanks([]);
         setFilteredBloodBanks([]);
         setIsLoading(false);
         return;
       }
-      
+
       // Process blood bank data
-      const foundBloodBanks: BloodBank[] = response.data.records.map((item: any, index: number) => {
-        // Generate random blood availability for demonstration
-        const bloodAvailability: {[key: string]: number} = {};
-        bloodGroups.forEach(group => {
-          // Randomly decide if this blood group is available (70% chance)
-          if (Math.random() > 0.3) {
-            // Random units between 1 and 50
-            bloodAvailability[group] = Math.floor(Math.random() * 50) + 1;
-          } else {
-            bloodAvailability[group] = 0;
-          }
-        });
-        
-        return {
-          id: item._id || index.toString(),
-          name: decodeHtml(item._blood_bank_name || "Unknown Blood Bank"),
-          address: decodeHtml(item._address || "Address not available"),
-          city: item._city || "Unknown",
-          state: item._state || "Unknown",
-          pincode: item._pincode || pincode,
-          contact: item._contact_no || "Not available",
-          mobile: item._mobile || "Not available",
-          email: item._email || "Not available",
-          category: item._category || "Unknown",
-          bloodComponentAvailable: item._blood_component_available === "YES",
-          serviceTime: item._service_time || "Unknown",
-          lat: parseFloat(item._latitude) || 0,
-          lon: parseFloat(item._longitude) || 0,
-          bloodAvailability
-        };
-      });
-      
+      const foundBloodBanks: BloodBank[] = response.data.records.map(
+        (item: any, index: number) => {
+          // Generate random blood availability for demonstration
+          const bloodAvailability: { [key: string]: number } = {};
+          bloodGroups.forEach((group) => {
+            // Randomly decide if this blood group is available (70% chance)
+            if (Math.random() > 0.3) {
+              // Random units between 1 and 50
+              bloodAvailability[group] = Math.floor(Math.random() * 50) + 1;
+            } else {
+              bloodAvailability[group] = 0;
+            }
+          });
+
+          return {
+            id: item._id || index.toString(),
+            name: decodeHtml(item._blood_bank_name || "Unknown Blood Bank"),
+            address: decodeHtml(item._address || "Address not available"),
+            city: item._city || "Unknown",
+            state: item._state || "Unknown",
+            pincode: item._pincode || pincode,
+            contact: item._contact_no || "Not available",
+            mobile: item._mobile || "Not available",
+            email: item._email || "Not available",
+            category: item._category || "Unknown",
+            bloodComponentAvailable: item._blood_component_available === "YES",
+            serviceTime: item._service_time || "Unknown",
+            lat: parseFloat(item._latitude) || 0,
+            lon: parseFloat(item._longitude) || 0,
+            bloodAvailability,
+          };
+        }
+      );
+
       setBloodBanks(foundBloodBanks);
       setFilteredBloodBanks(foundBloodBanks);
       setSearchQuery(pincode);
     } catch (err) {
-      console.error('Error fetching blood bank data:', err);
+      console.error("Error fetching blood bank data:", err);
       setError("Failed to fetch blood bank data. Please try again.");
       setBloodBanks([]);
       setFilteredBloodBanks([]);
@@ -147,19 +164,21 @@ const BloodBank = () => {
       setFilteredBloodBanks(bloodBanks);
       return;
     }
-    
-    const filtered = bloodBanks.filter(bloodBank => 
-      selectedBloodGroups.every(group => 
-        bloodBank.bloodAvailability[group] && bloodBank.bloodAvailability[group] > 0
+
+    const filtered = bloodBanks.filter((bloodBank) =>
+      selectedBloodGroups.every(
+        (group) =>
+          bloodBank.bloodAvailability[group] &&
+          bloodBank.bloodAvailability[group] > 0
       )
     );
-    
+
     setFilteredBloodBanks(filtered);
   }, [bloodBanks, selectedBloodGroups]);
 
   const toggleBloodGroup = (group: string) => {
     if (selectedBloodGroups.includes(group)) {
-      setSelectedBloodGroups(selectedBloodGroups.filter(g => g !== group));
+      setSelectedBloodGroups(selectedBloodGroups.filter((g) => g !== group));
     } else {
       setSelectedBloodGroups([...selectedBloodGroups, group]);
     }
@@ -173,52 +192,62 @@ const BloodBank = () => {
 
   // Example Indian pincodes for major cities
   const examplePincodes = [
-    { code: '110001', city: 'Delhi' },
-    { code: '400001', city: 'Mumbai' },
-    { code: '700001', city: 'Kolkata' },
-    { code: '600001', city: 'Chennai' },
-    { code: '500001', city: 'Hyderabad' },
-    { code: '560001', city: 'Bangalore' }
+    { code: "110001", city: "Delhi" },
+    { code: "400001", city: "Mumbai" },
+    { code: "700001", city: "Kolkata" },
+    { code: "600001", city: "Chennai" },
+    { code: "500001", city: "Hyderabad" },
+    { code: "560001", city: "Bangalore" },
   ];
 
   // Function to open location in Google Maps
   const openDirections = (bloodBank: BloodBank) => {
     // Use exact coordinates for location
     const url = `https://www.google.com/maps/search/?api=1&query=${bloodBank.lat},${bloodBank.lon}`;
-    
+
     // Open in a new tab
-    window.open(url, '_blank', 'noopener,noreferrer');
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   return (
     <div className="min-h-screen pt-24 pb-16">
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center mb-12">
-          <h1 
+          <h1
             className={cn(
               "text-4xl md:text-5xl font-display font-bold mb-4 transition-all duration-700",
-              isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
+              isVisible
+                ? "opacity-100 transform-none"
+                : "opacity-0 translate-y-4"
             )}
           >
-            {searchQuery ? `Blood Banks near ${searchQuery}` : 'Find Blood Banks in India'}
+            {searchQuery
+              ? `Blood Banks near ${searchQuery}`
+              : "Find Blood Banks in India"}
           </h1>
-          <p 
+          <p
             className={cn(
               "text-lg text-muted-foreground max-w-2xl mx-auto transition-all duration-700 delay-100",
-              isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
+              isVisible
+                ? "opacity-100 transform-none"
+                : "opacity-0 translate-y-4"
             )}
           >
-            Locate blood banks and check availability of blood groups across healthcare facilities in India.
+            Locate blood banks and check availability of blood groups across
+            healthcare facilities in India.
           </p>
         </div>
-        
-        <div 
+
+        <div
           className={cn(
             "mb-8 transition-all duration-700 delay-200",
             isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
           )}
         >
-          <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4">
+          <form
+            onSubmit={handleSearch}
+            className="flex flex-col md:flex-row gap-4"
+          >
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <MapPin size={18} className="text-muted-foreground" />
@@ -258,17 +287,21 @@ const BloodBank = () => {
               <span>Blood Groups</span>
             </button>
           </form>
-          
+
           {/* Filter Panel for Blood Groups */}
-          <div 
+          <div
             className={cn(
               "bg-white border border-border rounded-lg p-5 mt-4 transition-all duration-300",
-              isFilterOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 overflow-hidden py-0 border-transparent"
+              isFilterOpen
+                ? "max-h-96 opacity-100"
+                : "max-h-0 opacity-0 overflow-hidden py-0 border-transparent"
             )}
           >
-            <h3 className="font-medium mb-3">Filter by Blood Group Availability</h3>
+            <h3 className="font-medium mb-3">
+              Filter by Blood Group Availability
+            </h3>
             <div className="flex flex-wrap gap-2 mb-4">
-              {bloodGroups.map(group => (
+              {bloodGroups.map((group) => (
                 <button
                   key={group}
                   className={cn(
@@ -280,19 +313,26 @@ const BloodBank = () => {
                   onClick={() => toggleBloodGroup(group)}
                   type="button"
                 >
-                  <Droplet size={12} className={group.includes('-') ? "text-red-500" : "text-red-600"} />
+                  <Droplet
+                    size={12}
+                    className={
+                      group.includes("-") ? "text-red-500" : "text-red-600"
+                    }
+                  />
                   {group}
                 </button>
               ))}
             </div>
-            
+
             <div className="border-t border-border pt-4 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {selectedBloodGroups.length > 0 
-                  ? `Showing blood banks with ${selectedBloodGroups.join(', ')} available` 
-                  : 'Showing all blood banks'}
+                {selectedBloodGroups.length > 0
+                  ? `Showing blood banks with ${selectedBloodGroups.join(
+                      ", "
+                    )} available`
+                  : "Showing all blood banks"}
               </p>
-              
+
               <button
                 type="button"
                 className="text-sm text-primary"
@@ -305,12 +345,17 @@ const BloodBank = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Loading state */}
         {isLoading && (
           <div className="text-center py-16">
-            <Loader size={48} className="animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-lg text-muted-foreground">Searching for blood banks...</p>
+            <Loader
+              size={48}
+              className="animate-spin mx-auto mb-4 text-primary"
+            />
+            <p className="text-lg text-muted-foreground">
+              Searching for blood banks...
+            </p>
           </div>
         )}
 
@@ -320,7 +365,7 @@ const BloodBank = () => {
             <div className="mb-4 text-red-500">
               <p className="text-xl font-medium">{error}</p>
             </div>
-            <button 
+            <button
               className="btn-secondary mt-4"
               onClick={() => setError(null)}
             >
@@ -328,36 +373,49 @@ const BloodBank = () => {
             </button>
           </div>
         )}
-        
+
         {/* Results display only when not loading and no errors */}
         {!isLoading && !error && (
           <>
             {/* Results Info */}
             {bloodBanks.length > 0 && (
-              <div 
+              <div
                 className={cn(
                   "flex justify-between items-center mb-6 transition-all duration-700 delay-300",
-                  isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
+                  isVisible
+                    ? "opacity-100 transform-none"
+                    : "opacity-0 translate-y-4"
                 )}
               >
                 <p className="text-muted-foreground">
-                  Showing {filteredBloodBanks.length} {filteredBloodBanks.length === 1 ? 'blood bank' : 'blood banks'}
-                  {searchQuery ? ` near ${searchQuery}` : ''}
+                  Showing {filteredBloodBanks.length}{" "}
+                  {filteredBloodBanks.length === 1
+                    ? "blood bank"
+                    : "blood banks"}
+                  {searchQuery ? ` near ${searchQuery}` : ""}
                 </p>
               </div>
             )}
-            
+
             {/* No search yet state */}
             {bloodBanks.length === 0 && !searchQuery && (
               <div className="text-center py-16">
-                <Droplet size={48} className="mx-auto mb-4 text-red-500 opacity-40" />
-                <p className="text-xl font-medium mb-2">Enter an Indian pincode to find blood banks</p>
-                <p className="text-muted-foreground">Search for blood banks in your area by entering your 6-digit pincode</p>
-                
+                <Droplet
+                  size={48}
+                  className="mx-auto mb-4 text-red-500 opacity-40"
+                />
+                <p className="text-xl font-medium mb-2">
+                  Enter an Indian pincode to find blood banks
+                </p>
+                <p className="text-muted-foreground">
+                  Search for blood banks in your area by entering your 6-digit
+                  pincode
+                </p>
+
                 <div className="mt-6 text-sm text-muted-foreground">
                   <p className="mb-2">Example pincodes:</p>
                   <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
-                    {examplePincodes.map(example => (
+                    {examplePincodes.map((example) => (
                       <button
                         key={example.code}
                         onClick={() => {
@@ -371,29 +429,41 @@ const BloodBank = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 {/* E-RaktKosh integration hint */}
                 <div className="mt-8 max-w-2xl mx-auto">
                   <Card className="p-4 bg-muted/30">
-                    <h3 className="font-medium mb-2">About e-RaktKosh Integration</h3>
+                    <h3 className="font-medium mb-2">
+                      About e-RaktKosh Integration
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      This application integrates with e-RaktKosh, the centralized blood bank management system 
-                      in India. Blood availability data is shown for the 8 main blood groups (A+, A-, B+, B-, AB+, AB-, O+, O-).
+                      This application integrates with e-RaktKosh, the
+                      centralized blood bank management system in India. Blood
+                      availability data is shown for the 8 main blood groups
+                      (A+, A-, B+, B-, AB+, AB-, O+, O-).
                     </p>
                   </Card>
                 </div>
               </div>
             )}
-            
+
             {/* No blood banks with filters */}
             {filteredBloodBanks.length === 0 && bloodBanks.length > 0 && (
               <div className="col-span-full py-12 text-center">
                 <div className="mb-4 text-muted-foreground">
-                  <AlertTriangle size={48} className="mx-auto mb-4 opacity-40" />
-                  <p className="text-xl font-medium">No blood banks found with selected blood groups</p>
-                  <p className="text-muted-foreground">Try selecting different blood groups or try a different pincode</p>
+                  <AlertTriangle
+                    size={48}
+                    className="mx-auto mb-4 opacity-40"
+                  />
+                  <p className="text-xl font-medium">
+                    No blood banks found with selected blood groups
+                  </p>
+                  <p className="text-muted-foreground">
+                    Try selecting different blood groups or try a different
+                    pincode
+                  </p>
                 </div>
-                <button 
+                <button
                   className="btn-secondary mt-4"
                   onClick={() => {
                     setSelectedBloodGroups([]);
@@ -403,20 +473,29 @@ const BloodBank = () => {
                 </button>
               </div>
             )}
-            
+
             {/* Blood Bank Cards */}
             {bloodBanks.length > 0 && filteredBloodBanks.length > 0 && (
-              <div 
+              <div
                 className={cn(
                   "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-700 delay-400",
-                  isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
+                  isVisible
+                    ? "opacity-100 transform-none"
+                    : "opacity-0 translate-y-4"
                 )}
               >
                 {filteredBloodBanks.map((bloodBank) => (
-                  <div key={bloodBank.id} className="bg-white rounded-lg overflow-hidden shadow-md h-full flex flex-col">
+                  <div
+                    key={bloodBank.id}
+                    className="bg-white rounded-lg overflow-hidden shadow-md h-full flex flex-col"
+                  >
                     <div className="p-4 border-b border-border">
-                      <h3 className="text-lg font-medium mb-1">{bloodBank.name}</h3>
-                      <p className="text-sm text-muted-foreground">{bloodBank.address}</p>
+                      <h3 className="text-lg font-medium mb-1">
+                        {bloodBank.name}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {bloodBank.address}
+                      </p>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs bg-secondary px-2 py-1 rounded-full">
                           {bloodBank.category}
@@ -426,48 +505,62 @@ const BloodBank = () => {
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="p-4 flex-grow">
-                      <h4 className="text-sm font-medium mb-3">Blood Availability:</h4>
+                      <h4 className="text-sm font-medium mb-3">
+                        Blood Availability:
+                      </h4>
                       <div className="grid grid-cols-4 gap-2">
-                        {bloodGroups.map(group => (
-                          <div 
-                            key={group} 
+                        {bloodGroups.map((group) => (
+                          <div
+                            key={group}
                             className={cn(
                               "flex flex-col items-center p-2 rounded-md",
-                              bloodBank.bloodAvailability[group] > 0 
-                                ? "bg-green-50 border border-green-200" 
+                              bloodBank.bloodAvailability[group] > 0
+                                ? "bg-green-50 border border-green-200"
                                 : "bg-red-50 border border-red-200"
                             )}
                           >
                             <div className="flex items-center gap-1">
-                              <Droplet size={12} className={group.includes('-') ? "text-red-500" : "text-red-600"} />
+                              <Droplet
+                                size={12}
+                                className={
+                                  group.includes("-")
+                                    ? "text-red-500"
+                                    : "text-red-600"
+                                }
+                              />
                               <span className="font-medium">{group}</span>
                             </div>
-                            <span 
+                            <span
                               className={cn(
                                 "text-sm mt-1",
-                                bloodBank.bloodAvailability[group] > 0 
-                                  ? "text-green-600" 
+                                bloodBank.bloodAvailability[group] > 0
+                                  ? "text-green-600"
                                   : "text-red-500"
                               )}
                             >
-                              {bloodBank.bloodAvailability[group] > 0 
-                                ? `${bloodBank.bloodAvailability[group]} units` 
+                              {bloodBank.bloodAvailability[group] > 0
+                                ? `${bloodBank.bloodAvailability[group]} units`
                                 : "N.A."}
                             </span>
                           </div>
                         ))}
                       </div>
                     </div>
-                    
+
                     <div className="p-4 border-t border-border">
                       <div className="flex items-center gap-3 mb-3">
-                        <Phone size={16} className="text-muted-foreground flex-shrink-0" />
-                        <p className="text-sm">{bloodBank.contact || bloodBank.mobile}</p>
+                        <Phone
+                          size={16}
+                          className="text-muted-foreground flex-shrink-0"
+                        />
+                        <p className="text-sm">
+                          {bloodBank.contact || bloodBank.mobile}
+                        </p>
                       </div>
-                      
-                      <button 
+
+                      <button
                         onClick={() => openDirections(bloodBank)}
                         className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 transition-colors"
                       >
@@ -481,12 +574,16 @@ const BloodBank = () => {
             )}
           </>
         )}
-        
+
         {/* Additional information */}
         <div className="mt-16 text-center text-sm text-muted-foreground">
-          <p>Data sourced from National Health Portal's Blood Bank Directory via data.gov.in</p>
+          <p>
+            Data sourced from National Health Portal's Blood Bank Directory via
+            data.gov.in
+          </p>
           <p className="mt-1">
-            For emergency blood requirements, please contact the blood bank directly.
+            For emergency blood requirements, please contact the blood bank
+            directly.
           </p>
         </div>
       </div>
