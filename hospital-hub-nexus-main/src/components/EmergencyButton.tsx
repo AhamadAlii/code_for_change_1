@@ -13,7 +13,7 @@ const EmergencyButton = () => {
 
   const handleEmergencyCall = () => {
     setIsCalling(true);
-    
+
     // In a real app, you'd implement the actual emergency call functionality here
     setTimeout(() => {
       setIsCalling(false);
@@ -22,7 +22,7 @@ const EmergencyButton = () => {
 
   return (
     <>
-      <button 
+      <button
         onClick={toggleExpand}
         className={cn(
           "emergency-btn transition-all duration-300",
@@ -36,7 +36,7 @@ const EmergencyButton = () => {
         )}
       </button>
 
-      <div 
+      <div
         className={cn(
           "fixed z-40 bottom-8 right-8 transition-all duration-300 ease-in-out transform",
           isExpanded ? "translate-y-0 opacity-100 scale-100" : "translate-y-8 opacity-0 scale-95 pointer-events-none"
@@ -53,29 +53,31 @@ const EmergencyButton = () => {
               Call for immediate medical assistance
             </p>
           </div>
-          
-          <button
-            onClick={handleEmergencyCall}
-            disabled={isCalling}
-            className={cn(
-              "w-full py-3 px-4 rounded-lg font-medium text-white transition-all flex items-center justify-center gap-2",
-              isCalling ? "bg-green-600" : "bg-destructive hover:bg-destructive/90 active:scale-95"
-            )}
-          >
-            {isCalling ? (
-              <>
-                <span className="animate-pulse">Connecting...</span>
-              </>
-            ) : (
-              <>
-                <PhoneCall size={18} />
-                <span>Call Emergency (911)</span>
-              </>
-            )}
-          </button>
-          
+
+          <a href="tel://112">
+            <button
+              onClick={handleEmergencyCall}
+              disabled={isCalling}
+              className={cn(
+                "w-full py-3 px-4 rounded-lg font-medium text-white transition-all flex items-center justify-center gap-2",
+                isCalling ? "bg-green-600" : "bg-destructive hover:bg-destructive/90 active:scale-95"
+              )}
+            >
+              {isCalling ? (
+                <>
+                  <span className="animate-pulse">Connecting...</span>
+                </>
+              ) : (
+                <>
+                  <PhoneCall size={18} />
+                  <span>Call Emergency (112)</span>
+                </>
+              )}
+            </button>
+          </a>
+
           <div className="mt-4 text-center">
-            <button 
+            <button
               onClick={toggleExpand}
               className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
             >
