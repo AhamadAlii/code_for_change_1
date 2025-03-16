@@ -3,7 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ExternalLink, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 
-const API_URL = "https://api.mediastack.com/v1/news?access_key=a20d1232277c6a30d2a8699a75dd677d&categories=health&languages=en&limit=50";
+// const API_URL = "https://api.mediastack.com/v1/news?access_key=a20d1232277c6a30d2a8699a75dd677d&categories=health&languages=en&limit=50";
+
+const API_URL = "http://localhost:5000/health-news";
 
 const PLACEHOLDER_IMAGES = [
     "https://source.unsplash.com/400x300/?health,medical",
@@ -25,20 +27,22 @@ const HealthNewsCards = () => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        setLoading(true);
         fetch(API_URL)
             .then((response) => {
                 if (!response.ok) throw new Error("Failed to fetch news articles");
                 return response.json();
             })
             .then((data) => {
-                const filteredArticles = (data.data || []).filter(article => article.image);
+                // Ensure data structure is correct before filtering
+                const filteredArticles = (data?.data || []).filter(article => article.image);
                 setArticles(filteredArticles);
-                setLoading(false);
             })
             .catch((error) => {
+                console.error("Error fetching news:", error);
                 setError(error.message);
-                setLoading(false);
-            });
+            })
+            .finally(() => setLoading(false));
     }, []);
     
 
