@@ -19,6 +19,7 @@ interface Hospital {
   services: string[];
   lat?: number;
   lon?: number;
+  isCached?: boolean;
 }
 
 interface BloodBank {
