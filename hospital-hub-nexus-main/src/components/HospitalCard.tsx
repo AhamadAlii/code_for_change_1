@@ -15,6 +15,7 @@ interface HospitalCardProps {
   onDirectionsClick?: () => void;
   lat?: number;
   lon?: number;
+  isCached?: boolean
 }
 
 // Convert decimal coordinates to DMS (Degrees, Minutes, Seconds) format
@@ -45,6 +46,7 @@ const HospitalCard = ({
   isOpen,
   services,
   onDirectionsClick,
+  isCached=false,
   lat,
   lon,
 }: HospitalCardProps) => {
@@ -72,6 +74,11 @@ const HospitalCard = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {isCached && (
+        <div className="absolute top-0 right-0 z-10 bg-blue-500 text-white text-xs font-medium px-2 py-1 rounded-bl-lg">
+          Cached
+        </div>
+      )}
       <div className="relative h-48 overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center transition-transform duration-700"
