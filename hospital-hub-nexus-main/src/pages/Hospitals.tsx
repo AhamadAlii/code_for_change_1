@@ -555,13 +555,13 @@ const Hospitals = () => {
               <Filter size={18} />
               <span>Filters</span>
             </button>
-            <select
+            {/* <select
               className="px-5 py-3 bg-white border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
               <option value="distance">Sort by Distance</option>
-            </select>
+            </select> */}
           </form>
           
           {/* Filter Panel */}
