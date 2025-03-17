@@ -4,6 +4,7 @@ import HospitalCard from "@/components/HospitalCard";
 import BloodBankStatus from "@/components/BloodBankStatus";
 import HealthTips from "@/components/HealthTips";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 // Define TypeScript interfaces for better type safety
 interface Hospital {
@@ -58,6 +59,7 @@ const Index: React.FC = () => {
   } | null>(null);
   const [page, setPage] = useState<number>(1);
   const [bloodBankData, setBloodBankData] = useState<BloodBank | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchHospitals = async () => {
@@ -208,7 +210,7 @@ const Index: React.FC = () => {
               "api-key":
                 "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b",
               format: "json",
-              // limit: 10, // Limit the number of results
+              limit: 10, // Limit the number of results
             },
             headers: {
               "Access-Control-Allow-Origin": "*", // Add CORS header
@@ -317,7 +319,10 @@ const Index: React.FC = () => {
   }, [userLocation]);
 
   const loadMoreHospitals = () => {
-    setPage((prevPage) => prevPage + 1);
+    navigate("/hospitals", {
+      state: { hospitals: featuredHospitals.slice(page * 6) },
+    });
+    scrollTo(0, 0);
   };
 
   const displayedHospitals = featuredHospitals.slice(0, page * 6);
