@@ -66,20 +66,20 @@ const BloodBankStatus = ({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-semibold text-lg">{bloodBankName}</h3>
-          <p className="text-sm text-muted-foreground">Last updated: {lastUpdated}</p>
+          {/* <p className="text-sm text-muted-foreground">Last updated: {lastUpdated}</p> */}
         </div>
         <Heart size={24} className="text-red-500" />
       </div>
 
       <div className="space-y-4">
-        {bloodTypes.some(blood => blood.status === 'low') && (
+        {/* {bloodTypes.some(blood => blood.status === 'low') && (
           <div className="p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-3">
             <AlertTriangle size={18} className="text-red-500" />
             <p className="text-sm text-red-700">
               Urgent need for blood donations, especially types marked as critical.
             </p>
           </div>
-        )}
+        )} */}
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {bloodTypes.map((blood, index) => (
@@ -129,7 +129,7 @@ const BloodBankStatus = ({
       </div>
       
       <div className="mt-5 pt-4 border-t border-border flex justify-center">
-        <button className="btn-primary">Donate Blood</button>
+        {/* <button className="btn-primary">Donate Blood</button> */}
       </div>
     </div>
   );

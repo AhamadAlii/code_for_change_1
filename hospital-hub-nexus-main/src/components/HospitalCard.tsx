@@ -6,7 +6,6 @@ interface HospitalCardProps {
   id: string;
   name: string;
   address: string;
-  rating: number; // Keep for interface compatibility
   imageUrl: string;
   phoneNumber: string;
   isOpen: boolean;
