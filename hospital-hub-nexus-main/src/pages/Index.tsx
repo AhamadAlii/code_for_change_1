@@ -123,7 +123,7 @@ const Index = () => {
       id: '3',
       title: 'Understanding Blood Types and Compatibility',
       excerpt: 'Blood types play a crucial role in transfusions and medical procedures. Learn about different blood types and their compatibility for donations.',
-      imageUrl: 'https://images.unsplash.com/photo-1626958390878-00a829a8e929?q=80&w=2070&auto=format&fit=crop',
+      imageUrl: 'https://plus.unsplash.com/premium_photo-1702599018643-8c32c6d1394f?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
       category: 'Blood Donation',
       readTime: '6 min'
     }
