@@ -3,9 +3,9 @@ import { Search, Filter, MapPin, Clock, Star, Loader, AlertTriangle, Database, W
 import HospitalCard from '@/components/HospitalCard';
 import RecentSearches from '@/components/RecentSearches.tsx';
 import NetworkStatus from '@/components/NetworkStatus.tsx';
-import { saveHospitals,getHospitalsByPincode,isOnline } from '@/lib/indexedDB';
+import { saveHospitals, getHospitalsByPincode, isOnline } from '@/lib/indexedDB';
 import { cn } from '@/lib/utils';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 interface Hospital {
   id: string;
@@ -54,7 +54,7 @@ const defaultImages = [
 
 const Hospitals = () => {
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
+  const [searchParams] = useSearchParams();
   const initialLocation = searchParams.get('location') || '';
 
   const [searchTerm, setSearchTerm] = useState(initialLocation);
@@ -82,6 +82,14 @@ const Hospitals = () => {
   }, []);
 
   useEffect(() => {
+    const location = searchParams.get('location');
+    if (location) {
+      setSearchTerm(location);
+      searchHospitals(location);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const handleOnline = () => setOffline(false);
     const handleOffline = () => setOffline(true);
 
@@ -94,17 +102,13 @@ const Hospitals = () => {
     };
   }, []);
 
-  // Add Indian pincode validation
   const isValidIndianPincode = (pincode: string): boolean => {
-    // Indian pincodes are 6 digits
     return /^[1-9][0-9]{5}$/.test(pincode);
   };
 
-  // Function to search for hospitals using OpenStreetMap API
   const searchHospitals = async (pincode: string) => {
     if (!pincode.trim()) return;
 
-    // Validate Indian pincode format
     if (!isValidIndianPincode(pincode)) {
       setError("Please enter a valid Indian pincode (6 digits)");
       return;
@@ -115,10 +119,8 @@ const Hospitals = () => {
     setUsingCachedData(false);
 
     try {
-      // First check if we have cached data for this pincode
       const cachedHospitals = await getHospitalsByPincode(pincode);
 
-      // If we're offline or network request fails, use cached data if available
       if (!navigator.onLine) {
         if (cachedHospitals.length > 0) {
           setHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
@@ -608,7 +610,7 @@ const Hospitals = () => {
               <span>You're offline. Limited functionality available.</span>
             </div>
           )}
-          
+
           {/* Cached data indicator */}
           {usingCachedData && (
             <div className="bg-blue-50 text-blue-800 border border-blue-200 rounded-lg px-4 py-2 mt-4 inline-flex items-center gap-2">
@@ -663,16 +665,15 @@ const Hospitals = () => {
               <Filter size={18} />
               <span>Filters</span>
             </button>
-            <select
+            {/* <select
               className="px-5 py-3 bg-white border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
               <option value="distance">Sort by Distance</option>
-            </select>
+            </select> */}
           </form>
 
-          {/* Filter Panel */}
           <div
             className={cn(
               "bg-white border border-border rounded-lg p-5 mt-4 transition-all duration-300",
@@ -725,156 +726,156 @@ const Hospitals = () => {
 
         {/* Recent searches section - only show when we haven't searched yet */}
         {hospitals.length === 0 && !isLoading && !error && (
-            <RecentSearches 
-              onSelectPincode={(pincode) => {
-                setSearchTerm(pincode);
-                searchHospitals(pincode);
-              }}
-              className="mt-6"
-            />
-          )}
-        </div>
-
-        {/* Loading state */}
-        {isLoading && (
-          <div className="text-center py-16">
-            <Loader size={48} className="animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-lg text-muted-foreground">Searching for hospitals...</p>
-          </div>
-        )}
-
-        {/* Error state */}
-        {!isLoading && error && (
-          <div className="text-center py-12">
-            <div className="mb-4 text-red-500">
-              <p className="text-xl font-medium">{error}</p>
-            </div>
-            <button
-              className="btn-secondary mt-4"
-              onClick={() => {
-                searchHospitals(searchTerm);
-              }}
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-
-        {/* Results display only when not loading and no errors */}
-        {!isLoading && !error && (
-          <>
-            {/* Results Info */}
-            {hospitals.length > 0 && (
-              <div
-                className={cn(
-                  "flex flex-col md:flex-row justify-between items-start md:items-center mb-6 transition-all duration-700 delay-300 gap-4",
-                  isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
-                )}
-              >
-                <p className="text-muted-foreground">
-                  Showing {filteredHospitals.length} {filteredHospitals.length === 1 ? 'hospital' : 'hospitals'}
-                  {searchQuery ? ` near ${searchQuery}` : ''}
-                  {usingCachedData ? ' (from cache)' : ''}
-                </p>
-
-                {/* Hospital name search input for when there are many results */}
-                {hospitals.length > 20 && (
-                  <div className="relative w-full md:w-auto">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Search size={16} className="text-muted-foreground" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Search hospital by name..."
-                      className="pl-10 pr-4 py-2 text-sm rounded-lg border border-input bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full md:w-60"
-                      value={hospitalNameSearch}
-                      onChange={(e) => setHospitalNameSearch(e.target.value)}
-                    />
-                  </div>
-                )}
-
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="flex items-center gap-1">
-                    <Clock size={14} className="text-green-500" />
-                    <span>Open/Closed</span>
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* No search yet state */}
-            {hospitals.length === 0 && !searchQuery && (
-              <div className="text-center py-16">
-                <Search size={48} className="mx-auto mb-4 text-muted-foreground opacity-40" />
-                <p className="text-xl font-medium mb-2">Enter an Indian pincode to find hospitals</p>
-                <p className="text-muted-foreground">Search for hospitals in your area by entering your 6-digit pincode</p>
-
-                <div className="mt-6 text-sm text-muted-foreground">
-                  <p className="mb-2">Example pincodes:</p>
-                  <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
-                    {examplePincodes.map(example => (
-                      <button
-                        key={example.code}
-                        onClick={() => {
-                          setSearchTerm(example.code);
-                          searchHospitals(example.code);
-                        }}
-                        className="px-3 py-1 bg-secondary rounded-full hover:bg-secondary/80 transition-colors"
-                      >
-                        {example.city} ({example.code})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <AlertTriangle size={16} />
-                  <span>Only Indian locations are supported</span>
-                </div>
-              </div>
-            )}
-
-            {/* No hospitals with filters */}
-            {filteredHospitals.length === 0 && hospitals.length > 0 && (
-              <div className="col-span-full py-12 text-center">
-                <div className="mb-4 text-muted-foreground">
-                  <Search size={48} className="mx-auto mb-4 opacity-40" />
-                  <p className="text-xl font-medium">No hospitals found with selected filters</p>
-                  <p className="text-muted-foreground">Try adjusting your search filters or try a different pincode</p>
-                </div>
-                <button
-                  className="btn-secondary mt-4"
-                  onClick={() => {
-                    setSelectedServices([]);
-                    setOpenOnly(false);
-                  }}
-                >
-                  Reset All Filters
-                </button>
-              </div>
-            )}
-
-            {/* Hospital Cards */}
-            {hospitals.length > 0 && filteredHospitals.length > 0 && (
-              <div
-                className={cn(
-                  "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-700 delay-400",
-                  isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
-                )}
-              >
-                {filteredHospitals.map((hospital) => (
-                  <div key={hospital.id} className="h-full">
-                    <HospitalCard
-                      {...hospital}
-                      onDirectionsClick={() => openDirections(hospital)}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+          <RecentSearches
+            onSelectPincode={(pincode) => {
+              setSearchTerm(pincode);
+              searchHospitals(pincode);
+            }}
+            className="mt-6"
+          />
         )}
       </div>
+
+      {/* Loading state */}
+      {isLoading && (
+        <div className="text-center py-16">
+          <Loader size={48} className="animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-lg text-muted-foreground">Searching for hospitals...</p>
+        </div>
+      )}
+
+      {/* Error state */}
+      {!isLoading && error && (
+        <div className="text-center py-12">
+          <div className="mb-4 text-red-500">
+            <p className="text-xl font-medium">{error}</p>
+          </div>
+          <button
+            className="btn-secondary mt-4"
+            onClick={() => {
+              searchHospitals(searchTerm);
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+
+      {/* Results display only when not loading and no errors */}
+      {!isLoading && !error && (
+        <>
+          {/* Results Info */}
+          {hospitals.length > 0 && (
+            <div
+              className={cn(
+                "flex flex-col md:flex-row justify-between items-start md:items-center mb-6 transition-all duration-700 delay-300 gap-4",
+                isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
+              )}
+            >
+              <p className="text-muted-foreground">
+                Showing {filteredHospitals.length} {filteredHospitals.length === 1 ? 'hospital' : 'hospitals'}
+                {searchQuery ? ` near ${searchQuery}` : ''}
+                {usingCachedData ? ' (from cache)' : ''}
+              </p>
+
+              {/* Hospital name search input for when there are many results */}
+              {hospitals.length > 20 && (
+                <div className="relative w-full md:w-auto">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search size={16} className="text-muted-foreground" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search hospital by name..."
+                    className="pl-10 pr-4 py-2 text-sm rounded-lg border border-input bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all w-full md:w-60"
+                    value={hospitalNameSearch}
+                    onChange={(e) => setHospitalNameSearch(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 text-sm">
+                <span className="flex items-center gap-1">
+                  <Clock size={14} className="text-green-500" />
+                  <span>Open/Closed</span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* No search yet state */}
+          {hospitals.length === 0 && !searchQuery && (
+            <div className="text-center py-16">
+              <Search size={48} className="mx-auto mb-4 text-muted-foreground opacity-40" />
+              <p className="text-xl font-medium mb-2">Enter an Indian pincode to find hospitals</p>
+              <p className="text-muted-foreground">Search for hospitals in your area by entering your 6-digit pincode</p>
+
+              <div className="mt-6 text-sm text-muted-foreground">
+                <p className="mb-2">Example pincodes:</p>
+                <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
+                  {examplePincodes.map(example => (
+                    <button
+                      key={example.code}
+                      onClick={() => {
+                        setSearchTerm(example.code);
+                        searchHospitals(example.code);
+                      }}
+                      className="px-3 py-1 bg-secondary rounded-full hover:bg-secondary/80 transition-colors"
+                    >
+                      {example.city} ({example.code})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <AlertTriangle size={16} />
+                <span>Only Indian locations are supported</span>
+              </div>
+            </div>
+          )}
+
+          {/* No hospitals with filters */}
+          {filteredHospitals.length === 0 && hospitals.length > 0 && (
+            <div className="col-span-full py-12 text-center">
+              <div className="mb-4 text-muted-foreground">
+                <Search size={48} className="mx-auto mb-4 opacity-40" />
+                <p className="text-xl font-medium">No hospitals found with selected filters</p>
+                <p className="text-muted-foreground">Try adjusting your search filters or try a different pincode</p>
+              </div>
+              <button
+                className="btn-secondary mt-4"
+                onClick={() => {
+                  setSelectedServices([]);
+                  setOpenOnly(false);
+                }}
+              >
+                Reset All Filters
+              </button>
+            </div>
+          )}
+
+          {/* Hospital Cards */}
+          {hospitals.length > 0 && filteredHospitals.length > 0 && (
+            <div
+              className={cn(
+                "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-700 delay-400",
+                isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
+              )}
+            >
+              {filteredHospitals.map((hospital) => (
+                <div key={hospital.id} className="h-full">
+                  <HospitalCard
+                    {...hospital}
+                    onDirectionsClick={() => openDirections(hospital)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
     // </div>
   );
 };
