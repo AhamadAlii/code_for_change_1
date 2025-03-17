@@ -53,9 +53,12 @@ const HospitalCard = ({
 
   const handleDirectionsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onDirectionsClick) {
-      onDirectionsClick();
-    }
+    const mapsLinks = {
+      '1': 'https://maps.app.goo.gl/wRtt8Suvg3L87i6P9',
+      '2': 'https://maps.app.goo.gl/acrr7Brwf1HSCynR9',
+      '3': 'https://maps.app.goo.gl/r9ZNW38ffGwXvd7aA'
+    };
+    window.open(mapsLinks[id], '_blank');
   };
 
   // Format coordinates in DMS format if available
