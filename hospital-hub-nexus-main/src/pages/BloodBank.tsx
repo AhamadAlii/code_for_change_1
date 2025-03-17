@@ -91,10 +91,15 @@ const BloodBank = () => {
         `https://api.data.gov.in/resource/fced6df9-a360-4e08-8ca0-f283fc74ce15`, 
         {
           params: {
-            'api-key': '579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b',
-            'format': 'json',
-            'filters[pincode]': pincode
-          }
+            "api-key": "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b",
+            format: "json",
+            limit: 100,
+            offset: 0,
+            "filters[pincode]": pincode,
+          },
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+          },
         }
       );
       
