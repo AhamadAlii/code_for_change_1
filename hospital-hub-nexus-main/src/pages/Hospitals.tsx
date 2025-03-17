@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, MapPin, Clock, Star, Loader, AlertTriangle } from 'lucide-react';
+import { Search, Filter, MapPin, Clock, Star, Loader, AlertTriangle, Database, WifiOff } from 'lucide-react';
 import HospitalCard from '@/components/HospitalCard';
+import RecentSearches from '@/components/RecentSearches.tsx';
+import NetworkStatus from '@/components/NetworkStatus.tsx';
+import { saveHospitals,getHospitalsByPincode,isOnline } from '@/lib/indexedDB';
 import { cn } from '@/lib/utils';
 import { useLocation } from 'react-router-dom';
 
@@ -20,15 +23,15 @@ interface Hospital {
 
 // Common hospital services for categorization - Including Indian healthcare categories
 const serviceOptions = [
-  'Emergency', 
-  'Surgery', 
-  'Cardiology', 
-  'Pediatrics', 
-  'Neurology', 
-  'Orthopedics', 
-  'Oncology', 
-  'Radiology', 
-  'Laboratory', 
+  'Emergency',
+  'Surgery',
+  'Cardiology',
+  'Pediatrics',
+  'Neurology',
+  'Orthopedics',
+  'Oncology',
+  'Radiology',
+  'Laboratory',
   'Primary Care',
   'Ayurvedic',
   'Homeopathic',
@@ -53,7 +56,7 @@ const Hospitals = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const initialLocation = searchParams.get('location') || '';
-  
+
   const [searchTerm, setSearchTerm] = useState(initialLocation);
   const [searchQuery, setSearchQuery] = useState(initialLocation); // For pincode search
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -67,12 +70,28 @@ const Hospitals = () => {
   const [error, setError] = useState<string | null>(null);
   const [hospitalNameSearch, setHospitalNameSearch] = useState('');
 
+  const [offline, setOffline] = useState(!navigator.onLine);
+  const [usingCachedData, setUsingCachedData] = useState(false);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(true);
     }, 100);
-    
+
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => setOffline(false);
+    const handleOffline = () => setOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // Add Indian pincode validation
@@ -84,54 +103,95 @@ const Hospitals = () => {
   // Function to search for hospitals using OpenStreetMap API
   const searchHospitals = async (pincode: string) => {
     if (!pincode.trim()) return;
-    
+
     // Validate Indian pincode format
     if (!isValidIndianPincode(pincode)) {
       setError("Please enter a valid Indian pincode (6 digits)");
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
-    
-    // Add a 1 second delay to show loading screen
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    setUsingCachedData(false);
+
     try {
-      // OpenStreetMap Nominatim API to get coordinates from pincode
-      // Add country=india parameter to restrict to India
-      const nominatimResponse = await fetch(
-        `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&limit=1`,
-        { headers: { 'Accept-Language': 'en' } }
-      );
-      
-      if (!nominatimResponse.ok) {
-        throw new Error('Failed to fetch location data');
+      // First check if we have cached data for this pincode
+      const cachedHospitals = await getHospitalsByPincode(pincode);
+
+      // If we're offline or network request fails, use cached data if available
+      if (!navigator.onLine) {
+        if (cachedHospitals.length > 0) {
+          setHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+          setFilteredHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+          setSearchQuery(pincode);
+          setUsingCachedData(true);
+          setIsLoading(false);
+          return;
+        } else {
+          setError("You're offline and no cached data is available for this pincode. Please connect to the internet and try again.");
+          setIsLoading(false);
+          return;
+        }
       }
-      
-      const nominatimData = await nominatimResponse.json();
-      
-      if (!nominatimData.length) {
-        setError("Couldn't find location in India. Please check the pincode.");
-        setHospitals([]);
-        setFilteredHospitals([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      const { lat, lon, display_name } = nominatimData[0];
-      
-      // Ensure the location is in India
-      if (!display_name.toLowerCase().includes('india')) {
-        setError("This location appears to be outside India. Please enter an Indian pincode.");
-        setHospitals([]);
-        setFilteredHospitals([]);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Use Overpass API to query for hospitals in the area
-      const overpassQuery = `
+
+      // Add a 1 second delay to show loading screen
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      try {
+        // OpenStreetMap Nominatim API to get coordinates from pincode
+        // Add country=india parameter to restrict to India
+        const nominatimResponse = await fetch(
+          `https://nominatim.openstreetmap.org/search?postalcode=${pincode}&country=india&format=json&limit=1`,
+          { headers: { 'Accept-Language': 'en' } }
+        );
+
+        if (!nominatimResponse.ok) {
+          throw new Error('Failed to fetch location data');
+        }
+
+        const nominatimData = await nominatimResponse.json();
+
+        if (!nominatimData.length) {
+          // If online request fails but we have cached data, use it
+          if (cachedHospitals.length > 0) {
+            setHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+            setFilteredHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+            setSearchQuery(pincode);
+            setUsingCachedData(true);
+            setIsLoading(false);
+            return;
+          }
+
+          setError("Couldn't find location in India. Please check the pincode.");
+          setHospitals([]);
+          setFilteredHospitals([]);
+          setIsLoading(false);
+          return;
+        }
+
+        const { lat, lon, display_name } = nominatimData[0];
+
+        // Ensure the location is in India
+        if (!display_name.toLowerCase().includes('india')) {
+          // If online request fails but we have cached data, use it
+          if (cachedHospitals.length > 0) {
+            setHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+            setFilteredHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+            setSearchQuery(pincode);
+            setUsingCachedData(true);
+            setIsLoading(false);
+            return;
+          }
+
+          setError("This location appears to be outside India. Please enter an Indian pincode.");
+          setHospitals([]);
+          setFilteredHospitals([]);
+          setIsLoading(false);
+          return;
+        }
+
+        // Use Overpass API to query for hospitals in the area
+        const overpassQuery = `
         [out:json];
         (
           node["amenity"="hospital"](around:5000,${lat},${lon});
@@ -148,199 +208,231 @@ const Hospitals = () => {
         >;
         out skel qt;
       `;
-      
-      const overpassResponse = await fetch(
-        `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`
-      );
-      
-      if (!overpassResponse.ok) {
-        throw new Error('Failed to fetch hospital data');
-      }
-      
-      const overpassData = await overpassResponse.json();
-      
-      if (!overpassData.elements || overpassData.elements.length === 0) {
-        setError("No hospitals found in this pincode area. Try a different pincode in India.");
+
+        const overpassResponse = await fetch(
+          `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`
+        );
+
+        if (!overpassResponse.ok) {
+          throw new Error('Failed to fetch hospital data');
+        }
+
+        const overpassData = await overpassResponse.json();
+
+        if (!overpassData.elements || overpassData.elements.length === 0) {
+          // If online request fails but we have cached data, use it
+          if (cachedHospitals.length > 0) {
+            setHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+            setFilteredHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+            setSearchQuery(pincode);
+            setUsingCachedData(true);
+            setIsLoading(false);
+            return;
+          }
+
+          setError("No hospitals found in this pincode area. Try a different pincode in India.");
+          setHospitals([]);
+          setFilteredHospitals([]);
+          setIsLoading(false);
+          return;
+        }
+
+        // Process hospital data
+        const foundHospitals: Hospital[] = overpassData.elements
+          .filter((element: any) => {
+            // More strict filtering to ensure we only get actual hospitals
+            if (!element.tags) return false;
+
+            // Skip entries without coordinates
+            if (!element.lat || !element.lon) return false;
+
+            // Check if it's explicitly a hospital or medical facility
+            const isHospital =
+              element.tags.amenity === 'hospital' ||
+              element.tags.healthcare === 'hospital';
+
+            // Check if it's a clinic or medical center
+            const isClinic =
+              element.tags.amenity === 'clinic' ||
+              element.tags.healthcare === 'clinic' ||
+              element.tags.healthcare === 'centre' ||
+              element.tags.healthcare === 'center';
+
+            // Exclude specific types that aren't hospitals
+            const isExcluded =
+              element.tags.amenity === 'pharmacy' ||
+              element.tags.amenity === 'doctors' ||
+              element.tags.healthcare === 'pharmacy' ||
+              element.tags.healthcare === 'blood_donation' ||
+              element.tags.healthcare === 'laboratory' ||
+              element.tags.healthcare === 'sample_collection' ||
+              element.tags.healthcare === 'blood_bank' ||
+              element.tags.name?.toLowerCase().includes('pharmacy') ||
+              element.tags.name?.toLowerCase().includes('medical store') ||
+              element.tags.name?.toLowerCase().includes('diagnostic') ||
+              element.tags.name?.toLowerCase().includes('lab') ||
+              element.tags.name?.toLowerCase().includes('laboratory');
+
+            // Check name for hospital keywords
+            const nameHasHospitalKeyword =
+              element.tags.name && (
+                element.tags.name.toLowerCase().includes('hospital') ||
+                element.tags.name.toLowerCase().includes('medical center') ||
+                element.tags.name.toLowerCase().includes('medical centre') ||
+                element.tags.name.toLowerCase().includes('nursing home') ||
+                element.tags.name.toLowerCase().includes('healthcare')
+              );
+
+            return (isHospital || isClinic || nameHasHospitalKeyword) && !isExcluded;
+          })
+          .map((element: any, index: number) => {
+            // Calculate distance (crow flies)
+            const hospitalLat = element.lat || 0;
+            const hospitalLon = element.lon || 0;
+            const distance = calculateDistance(
+              parseFloat(lat),
+              parseFloat(lon),
+              hospitalLat,
+              hospitalLon
+            );
+
+            // Determine services based on tags
+            const services: string[] = [];
+            if (element.tags.emergency === 'yes') services.push('Emergency');
+            if (element.tags.healthcare === 'doctor') services.push('Primary Care');
+            if (element.tags.healthcare === 'hospital') services.push('Surgery');
+            if (element.tags.healthcare === 'clinic') services.push('Primary Care');
+
+            // Add Indian healthcare types
+            if (element.tags.healthcare === 'ayurvedic') services.push('Ayurvedic');
+            if (element.tags.healthcare === 'homeopathic') services.push('Homeopathic');
+            if (element.tags.healthcare === 'unani' || element.tags.healthcare === 'siddha') services.push('Alternative Medicine');
+            if (element.tags.healthcare === 'physiotherapist') services.push('Physiotherapy');
+            if (element.tags.healthcare === 'yoga') services.push('Wellness');
+
+            // Add specialty if available
+            if (element.tags.healthcare_speciality) {
+              const specialties = element.tags.healthcare_speciality.split(';');
+              for (const specialty of specialties) {
+                const mappedSpecialty = mapSpecialtyToService(specialty.trim());
+                if (mappedSpecialty && !services.includes(mappedSpecialty)) {
+                  services.push(mappedSpecialty);
+                }
+              }
+            }
+
+            // If no services were identified, add some default ones
+            if (services.length === 0) {
+              services.push('Primary Care');
+
+              // Add random services for demo purposes
+              const randomServices = serviceOptions
+                .sort(() => 0.5 - Math.random())
+                .slice(0, Math.floor(Math.random() * 3) + 1);
+
+              for (const service of randomServices) {
+                if (!services.includes(service)) {
+                  services.push(service);
+                }
+              }
+            }
+
+            // Determine open status (random for demo since actual opening hours might not be available)
+            const isOpen = Math.random() > 0.3; // 70% chance of being open
+
+            // Get name or fallback
+            const name = element.tags.name ||
+              element.tags["name:en"] ||
+              (element.tags.amenity === 'hospital' ? 'Hospital' : 'Medical Clinic');
+
+            // Get address or construct from available data
+            const address = element.tags["addr:full"] ||
+              constructAddress(element.tags) ||
+              `Near ${display_name}`;
+
+            // Helper function to format Indian phone numbers
+            const formatIndianPhoneNumber = (phone: string | null): string => {
+              if (!phone) return "Not available";
+
+              // If already formatted or contains spaces, return as is
+              if (phone.includes(" ")) {
+                return phone;
+              }
+
+              // Clean the number and keep only digits
+              const digits = phone.replace(/\D/g, '');
+
+              // Format phone number without adding country code
+              if (digits.length >= 8 && digits.length <= 12) {
+                // For telephone numbers or mobile numbers without country code
+                return digits.length > 10
+                  ? `${digits.slice(0, digits.length - 10)} ${digits.slice(-10, -5)} ${digits.slice(-5)}`
+                  : `${digits.slice(0, digits.length - 5)} ${digits.slice(-5)}`;
+              }
+
+              // Return original if can't format
+              return phone;
+            };
+
+            // Get phone number or fallback
+            const phoneNumber = formatIndianPhoneNumber(
+              element.tags.phone ||
+              element.tags["contact:phone"] ||
+              null
+            );
+
+            // Pick an image for the hospital
+            const imageUrl = defaultImages[index % defaultImages.length];
+
+            // Comment out rating generation
+            // const rating = (Math.random() * 1.5 + 3.5).toFixed(1);
+
+            return {
+              id: element.id.toString(),
+              name,
+              address,
+              rating: 0, // Set to 0 since we're not using ratings
+              imageUrl,
+              phoneNumber,
+              isOpen,
+              distance: `${distance.toFixed(1)} km`,
+              services,
+              lat: hospitalLat,
+              lon: hospitalLon,
+              isCached: false
+            };
+          });
+
+        // Save to IndexedDB for offline use
+        await saveHospitals(pincode, foundHospitals);
+
+        setHospitals(foundHospitals);
+        setFilteredHospitals(foundHospitals);
+        setSearchQuery(pincode); // Update the display term
+      } catch (err) {
+        console.error('Error fetching hospital data:', err);
+
+        if (cachedHospitals.length > 0) {
+          setHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+          setFilteredHospitals(cachedHospitals.map(h => ({ ...h, isCached: true })));
+          setSearchQuery(pincode);
+          setUsingCachedData(true);
+          setIsLoading(false);
+          return;
+        }
+
+        setError("Failed to fetch hospital data. Please try again.");
         setHospitals([]);
         setFilteredHospitals([]);
-        setIsLoading(false);
-        return;
       }
-      
-      // Process hospital data
-      const foundHospitals: Hospital[] = overpassData.elements
-        .filter((element: any) => {
-          // More strict filtering to ensure we only get actual hospitals
-          if (!element.tags) return false;
-          
-          // Skip entries without coordinates
-          if (!element.lat || !element.lon) return false;
-          
-          // Check if it's explicitly a hospital or medical facility
-          const isHospital = 
-            element.tags.amenity === 'hospital' || 
-            element.tags.healthcare === 'hospital';
-          
-          // Check if it's a clinic or medical center
-          const isClinic = 
-            element.tags.amenity === 'clinic' || 
-            element.tags.healthcare === 'clinic' ||
-            element.tags.healthcare === 'centre' ||
-            element.tags.healthcare === 'center';
-          
-          // Exclude specific types that aren't hospitals
-          const isExcluded = 
-            element.tags.amenity === 'pharmacy' || 
-            element.tags.amenity === 'doctors' ||
-            element.tags.healthcare === 'pharmacy' ||
-            element.tags.healthcare === 'blood_donation' ||
-            element.tags.healthcare === 'laboratory' ||
-            element.tags.healthcare === 'sample_collection' ||
-            element.tags.healthcare === 'blood_bank' ||
-            element.tags.name?.toLowerCase().includes('pharmacy') ||
-            element.tags.name?.toLowerCase().includes('medical store') ||
-            element.tags.name?.toLowerCase().includes('diagnostic') ||
-            element.tags.name?.toLowerCase().includes('lab') ||
-            element.tags.name?.toLowerCase().includes('laboratory');
-          
-          // Check name for hospital keywords
-          const nameHasHospitalKeyword = 
-            element.tags.name && (
-              element.tags.name.toLowerCase().includes('hospital') ||
-              element.tags.name.toLowerCase().includes('medical center') ||
-              element.tags.name.toLowerCase().includes('medical centre') ||
-              element.tags.name.toLowerCase().includes('nursing home') ||
-              element.tags.name.toLowerCase().includes('healthcare')
-            );
-          
-          return (isHospital || isClinic || nameHasHospitalKeyword) && !isExcluded;
-        })
-        .map((element: any, index: number) => {
-          // Calculate distance (crow flies)
-          const hospitalLat = element.lat || 0;
-          const hospitalLon = element.lon || 0;
-          const distance = calculateDistance(
-            parseFloat(lat), 
-            parseFloat(lon), 
-            hospitalLat, 
-            hospitalLon
-          );
-          
-          // Determine services based on tags
-          const services: string[] = [];
-          if (element.tags.emergency === 'yes') services.push('Emergency');
-          if (element.tags.healthcare === 'doctor') services.push('Primary Care');
-          if (element.tags.healthcare === 'hospital') services.push('Surgery');
-          if (element.tags.healthcare === 'clinic') services.push('Primary Care');
-          
-          // Add Indian healthcare types
-          if (element.tags.healthcare === 'ayurvedic') services.push('Ayurvedic');
-          if (element.tags.healthcare === 'homeopathic') services.push('Homeopathic');
-          if (element.tags.healthcare === 'unani' || element.tags.healthcare === 'siddha') services.push('Alternative Medicine');
-          if (element.tags.healthcare === 'physiotherapist') services.push('Physiotherapy');
-          if (element.tags.healthcare === 'yoga') services.push('Wellness');
-          
-          // Add specialty if available
-          if (element.tags.healthcare_speciality) {
-            const specialties = element.tags.healthcare_speciality.split(';');
-            for (const specialty of specialties) {
-              const mappedSpecialty = mapSpecialtyToService(specialty.trim());
-              if (mappedSpecialty && !services.includes(mappedSpecialty)) {
-                services.push(mappedSpecialty);
-              }
-            }
-          }
-          
-          // If no services were identified, add some default ones
-          if (services.length === 0) {
-            services.push('Primary Care');
-            
-            // Add random services for demo purposes
-            const randomServices = serviceOptions
-              .sort(() => 0.5 - Math.random())
-              .slice(0, Math.floor(Math.random() * 3) + 1);
-            
-            for (const service of randomServices) {
-              if (!services.includes(service)) {
-                services.push(service);
-              }
-            }
-          }
-          
-          // Determine open status (random for demo since actual opening hours might not be available)
-          const isOpen = Math.random() > 0.3; // 70% chance of being open
-          
-          // Get name or fallback
-          const name = element.tags.name || 
-                       element.tags["name:en"] || 
-                       (element.tags.amenity === 'hospital' ? 'Hospital' : 'Medical Clinic');
-          
-          // Get address or construct from available data
-          const address = element.tags["addr:full"] || 
-                          constructAddress(element.tags) || 
-                          `Near ${display_name}`;
-          
-          // Helper function to format Indian phone numbers
-          const formatIndianPhoneNumber = (phone: string | null): string => {
-            if (!phone) return "Not available";
-            
-            // If already formatted or contains spaces, return as is
-            if (phone.includes(" ")) {
-              return phone;
-            }
-            
-            // Clean the number and keep only digits
-            const digits = phone.replace(/\D/g, '');
-            
-            // Format phone number without adding country code
-            if (digits.length >= 8 && digits.length <= 12) {
-              // For telephone numbers or mobile numbers without country code
-              return digits.length > 10 
-                ? `${digits.slice(0, digits.length-10)} ${digits.slice(-10, -5)} ${digits.slice(-5)}`
-                : `${digits.slice(0, digits.length-5)} ${digits.slice(-5)}`;
-            }
-            
-            // Return original if can't format
-            return phone;
-          };
-
-          // Get phone number or fallback
-          const phoneNumber = formatIndianPhoneNumber(
-            element.tags.phone || 
-            element.tags["contact:phone"] || 
-            null
-          );
-          
-          // Pick an image for the hospital
-          const imageUrl = defaultImages[index % defaultImages.length];
-          
-          // Comment out rating generation
-          // const rating = (Math.random() * 1.5 + 3.5).toFixed(1);
-          
-          return {
-            id: element.id.toString(),
-            name,
-            address,
-            rating: 0, // Set to 0 since we're not using ratings
-            imageUrl,
-            phoneNumber,
-            isOpen,
-            distance: `${distance.toFixed(1)} km`,
-            services,
-            lat: hospitalLat,
-            lon: hospitalLon
-          };
-        });
-      
-      setHospitals(foundHospitals);
-      setFilteredHospitals(foundHospitals);
-      setSearchQuery(pincode); // Update the display term
-    } catch (err) {
-      console.error('Error fetching hospital data:', err);
-      setError("Failed to fetch hospital data. Please try again.");
+    }
+    catch (err) {
+      console.error('Error in searchHospitals:', err);
+      setError("An unexpected error occurred. Please try again.");
       setHospitals([]);
       setFilteredHospitals([]);
-    } finally {
+    }
+    finally {
       setIsLoading(false);
     }
   };
@@ -349,38 +441,38 @@ const Hospitals = () => {
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     // Convert degrees to radians
     const toRad = (value: number) => value * Math.PI / 180;
-    
+
     const R = 6371; // Earth's radius in kilometers
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
-    
+
     return distance;
   };
 
   // Helper function to construct address from OSM tags
   const constructAddress = (tags: any): string => {
     const parts = [];
-    
+
     if (tags["addr:housenumber"]) parts.push(tags["addr:housenumber"]);
     if (tags["addr:street"]) parts.push(tags["addr:street"]);
     if (tags["addr:city"]) parts.push(tags["addr:city"]);
     if (tags["addr:state"]) parts.push(tags["addr:state"]);
     if (tags["addr:postcode"]) parts.push(tags["addr:postcode"]);
-    
+
     return parts.length > 0 ? parts.join(', ') : '';
   };
 
   // Helper function to map healthcare specialties to service categories
   const mapSpecialtyToService = (specialty: string): string | null => {
-    const specialtyMap: {[key: string]: string} = {
+    const specialtyMap: { [key: string]: string } = {
       'cardiology': 'Cardiology',
       'heart': 'Cardiology',
       'cardiac': 'Cardiology',
@@ -409,15 +501,15 @@ const Hospitals = () => {
       'yoga': 'Wellness',
       'physiotherapy': 'Physiotherapy'
     };
-    
+
     const lowerSpecialty = specialty.toLowerCase();
-    
+
     for (const [key, value] of Object.entries(specialtyMap)) {
       if (lowerSpecialty.includes(key)) {
         return value;
       }
     }
-    
+
     return null;
   };
 
@@ -425,7 +517,7 @@ const Hospitals = () => {
   const openDirections = (hospital: Hospital) => {
     // Use exact coordinates for location
     const url = `https://www.google.com/maps/search/?api=1&query=${hospital.lat},${hospital.lon}`;
-    
+
     // Open in a new tab
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -433,26 +525,26 @@ const Hospitals = () => {
   // Filter and sort hospitals
   useEffect(() => {
     let result = [...hospitals];
-    
+
     // Apply hospital name search if more than 20 hospitals in result
     if (hospitalNameSearch && hospitals.length > 20) {
-      result = result.filter(hospital => 
+      result = result.filter(hospital =>
         hospital.name.toLowerCase().includes(hospitalNameSearch.toLowerCase())
       );
     }
-    
+
     // Apply service filter
     if (selectedServices.length > 0) {
-      result = result.filter(hospital => 
+      result = result.filter(hospital =>
         selectedServices.some(service => hospital.services.includes(service))
       );
     }
-    
+
     // Apply open only filter
     if (openOnly) {
       result = result.filter(hospital => hospital.isOpen);
     }
-    
+
     // Apply sorting
     result.sort((a, b) => {
       if (sortBy === 'distance') {
@@ -460,7 +552,7 @@ const Hospitals = () => {
       }
       return 0;
     });
-    
+
     setFilteredHospitals(result);
   }, [hospitals, selectedServices, openOnly, sortBy, hospitalNameSearch]);
 
@@ -492,7 +584,7 @@ const Hospitals = () => {
     <div className="min-h-screen pt-24 pb-16">
       <div className="container mx-auto px-4 md:px-6">
         <div className="text-center mb-12">
-          <h1 
+          <h1
             className={cn(
               "text-4xl md:text-5xl font-display font-bold mb-4 transition-all duration-700",
               isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
@@ -500,7 +592,7 @@ const Hospitals = () => {
           >
             {searchQuery ? `Hospitals near ${searchQuery}` : 'Find Hospitals in India'}
           </h1>
-          <p 
+          <p
             className={cn(
               "text-lg text-muted-foreground max-w-2xl mx-auto transition-all duration-700 delay-100",
               isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
@@ -508,9 +600,25 @@ const Hospitals = () => {
           >
             Discover healthcare facilities across India with comprehensive services and expert medical care.
           </p>
+
+          {/* Offline indicator */}
+          {offline && (
+            <div className="bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-4 py-2 mt-4 inline-flex items-center gap-2">
+              <WifiOff size={16} />
+              <span>You're offline. Limited functionality available.</span>
+            </div>
+          )}
+          
+          {/* Cached data indicator */}
+          {usingCachedData && (
+            <div className="bg-blue-50 text-blue-800 border border-blue-200 rounded-lg px-4 py-2 mt-4 inline-flex items-center gap-2">
+              <Database size={16} />
+              <span>Using cached data from previous search.</span>
+            </div>
+          )}
         </div>
-        
-        <div 
+
+        <div
           className={cn(
             "mb-8 transition-all duration-700 delay-200",
             isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
@@ -555,17 +663,17 @@ const Hospitals = () => {
               <Filter size={18} />
               <span>Filters</span>
             </button>
-            {/* <select
+            <select
               className="px-5 py-3 bg-white border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
               <option value="distance">Sort by Distance</option>
-            </select> */}
+            </select>
           </form>
-          
+
           {/* Filter Panel */}
-          <div 
+          <div
             className={cn(
               "bg-white border border-border rounded-lg p-5 mt-4 transition-all duration-300",
               isFilterOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0 overflow-hidden py-0 border-transparent"
@@ -589,7 +697,7 @@ const Hospitals = () => {
                 </button>
               ))}
             </div>
-            
+
             <div className="border-t border-border pt-4 flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -600,7 +708,7 @@ const Hospitals = () => {
                 />
                 <span className="text-sm">Show only open hospitals</span>
               </label>
-              
+
               <button
                 type="button"
                 className="text-sm text-primary"
@@ -614,7 +722,19 @@ const Hospitals = () => {
             </div>
           </div>
         </div>
-        
+
+        {/* Recent searches section - only show when we haven't searched yet */}
+        {hospitals.length === 0 && !isLoading && !error && (
+            <RecentSearches 
+              onSelectPincode={(pincode) => {
+                setSearchTerm(pincode);
+                searchHospitals(pincode);
+              }}
+              className="mt-6"
+            />
+          )}
+        </div>
+
         {/* Loading state */}
         {isLoading && (
           <div className="text-center py-16">
@@ -629,21 +749,23 @@ const Hospitals = () => {
             <div className="mb-4 text-red-500">
               <p className="text-xl font-medium">{error}</p>
             </div>
-            <button 
+            <button
               className="btn-secondary mt-4"
-              onClick={() => setError(null)}
+              onClick={() => {
+                searchHospitals(searchTerm);
+              }}
             >
               Try Again
             </button>
           </div>
         )}
-        
+
         {/* Results display only when not loading and no errors */}
         {!isLoading && !error && (
           <>
             {/* Results Info */}
             {hospitals.length > 0 && (
-              <div 
+              <div
                 className={cn(
                   "flex flex-col md:flex-row justify-between items-start md:items-center mb-6 transition-all duration-700 delay-300 gap-4",
                   isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
@@ -652,8 +774,9 @@ const Hospitals = () => {
                 <p className="text-muted-foreground">
                   Showing {filteredHospitals.length} {filteredHospitals.length === 1 ? 'hospital' : 'hospitals'}
                   {searchQuery ? ` near ${searchQuery}` : ''}
+                  {usingCachedData ? ' (from cache)' : ''}
                 </p>
-                
+
                 {/* Hospital name search input for when there are many results */}
                 {hospitals.length > 20 && (
                   <div className="relative w-full md:w-auto">
@@ -669,7 +792,7 @@ const Hospitals = () => {
                     />
                   </div>
                 )}
-                
+
                 <div className="flex items-center gap-4 text-sm">
                   <span className="flex items-center gap-1">
                     <Clock size={14} className="text-green-500" />
@@ -678,14 +801,14 @@ const Hospitals = () => {
                 </div>
               </div>
             )}
-            
+
             {/* No search yet state */}
             {hospitals.length === 0 && !searchQuery && (
               <div className="text-center py-16">
                 <Search size={48} className="mx-auto mb-4 text-muted-foreground opacity-40" />
                 <p className="text-xl font-medium mb-2">Enter an Indian pincode to find hospitals</p>
                 <p className="text-muted-foreground">Search for hospitals in your area by entering your 6-digit pincode</p>
-                
+
                 <div className="mt-6 text-sm text-muted-foreground">
                   <p className="mb-2">Example pincodes:</p>
                   <div className="flex flex-wrap justify-center gap-2 max-w-md mx-auto">
@@ -703,14 +826,14 @@ const Hospitals = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                   <AlertTriangle size={16} />
                   <span>Only Indian locations are supported</span>
                 </div>
               </div>
             )}
-            
+
             {/* No hospitals with filters */}
             {filteredHospitals.length === 0 && hospitals.length > 0 && (
               <div className="col-span-full py-12 text-center">
@@ -719,7 +842,7 @@ const Hospitals = () => {
                   <p className="text-xl font-medium">No hospitals found with selected filters</p>
                   <p className="text-muted-foreground">Try adjusting your search filters or try a different pincode</p>
                 </div>
-                <button 
+                <button
                   className="btn-secondary mt-4"
                   onClick={() => {
                     setSelectedServices([]);
@@ -730,10 +853,10 @@ const Hospitals = () => {
                 </button>
               </div>
             )}
-            
+
             {/* Hospital Cards */}
             {hospitals.length > 0 && filteredHospitals.length > 0 && (
-              <div 
+              <div
                 className={cn(
                   "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-all duration-700 delay-400",
                   isVisible ? "opacity-100 transform-none" : "opacity-0 translate-y-4"
@@ -741,8 +864,8 @@ const Hospitals = () => {
               >
                 {filteredHospitals.map((hospital) => (
                   <div key={hospital.id} className="h-full">
-                    <HospitalCard 
-                      {...hospital} 
+                    <HospitalCard
+                      {...hospital}
                       onDirectionsClick={() => openDirections(hospital)}
                     />
                   </div>
@@ -752,7 +875,7 @@ const Hospitals = () => {
           </>
         )}
       </div>
-    </div>
+    // </div>
   );
 };
 
